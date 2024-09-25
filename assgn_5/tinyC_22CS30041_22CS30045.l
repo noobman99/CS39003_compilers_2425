@@ -1,5 +1,7 @@
 %{
-    #include "y.tab.h"
+#include "y.tab.h"
+void yyerror(char* s);
+int yylex();
 %}
 
 AUTO		            "auto"
@@ -132,7 +134,7 @@ WS                      [ \t]
 {DO}		            { return DO; }
 {DOUBLE}		        { return DOUBLE; }
 {ELSE}		            { return ELSE; }
-{ENUM}		            { return ENUM; }
+{ENUM}		            { /* return ENUM; */ }
 {EXTERN}		        { return EXTERN; }
 {FLOAT}		            { return FLOAT; }
 {FOR}		            { return FOR; }
@@ -148,10 +150,10 @@ WS                      [ \t]
 {SIGNED}		        { return SIGNED; }
 {SIZEOF}		        { return SIZEOF; }
 {STATIC}		        { return STATIC; }
-{STRUCT}		        { return STRUCT; }
+{STRUCT}		        { /* return STRUCT; */ }
 {SWITCH}		        { return SWITCH; }
-{TYPEDEF}		        { return TYPEDEF; }
-{UNION}		            { return UNION; }
+{TYPEDEF}		        { /* return TYPEDEF; */ }
+{UNION}		            { /* return UNION; */ }
 {UNSIGNED}		        { return UNSIGNED; }
 {VOID}		            { return VOID; }
 {VOLATILE}		        { return VOLATILE; }
@@ -183,7 +185,7 @@ WS                      [ \t]
 {TILDE}                 { return TILDE; }
 {NOT}                   { return NOT; }
 {DIV}                   { return DIV; }
-{PERCENT}               { return PERCENT; }
+{PERCENT}               { return MOD; }
 {LSHIFT}                { return LSHIFT; }
 {RSHIFT}                { return RSHIFT; }
 {LESS}                  { return LESS; }
@@ -206,16 +208,16 @@ WS                      [ \t]
 {MODASSIGN}             { return MODASSIGN; }
 {ADDASSIGN}             { return ADDASSIGN; }
 {SUBASSIGN}             { return SUBASSIGN; }
-{LSHIFTASSIGN}          { return LSHIFTASSIGN; }
-{RSHIFTASSIGN}          { return RSHIFTASSIGN; }
+{LSHIFTASSIGN}          { return LEFTASSIGN; }
+{RSHIFTASSIGN}          { return RIGHTASSIGN; }
 {ANDASSIGN}             { return ANDASSIGN; }
 {XORASSIGN}             { return XORASSIGN; }
 {ORASSIGN}              { return ORASSIGN; }
 {COMMA}                 { return COMMA; }
-{HASH}                  { return HASH; }
+{HASH}                  { /* return HASH; */ }
 
 {WS}                    { }
-{NEWLINE}               { lineno++; }
+{NEWLINE}               { yylineno++; }
 
 .                       { }
 
