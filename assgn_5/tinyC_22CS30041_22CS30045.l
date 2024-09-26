@@ -1,4 +1,5 @@
 %{
+#include<stdlib.h>
 #include "y.tab.h"
 void yyerror(char* s);
 int yylex();
@@ -162,11 +163,11 @@ WS                      [ \t]
 {COMPLEX_}		        { return COMPLEX_; }
 {IMAGINARY_}		    { return IMAGINARY_; }
 
-{IDENTIFIER}            { return IDENTIFIER; }  
-{FLOATING_CONSTANT}     { return FLOATING_CONSTANT; }
-{INTEGER_CONSTANT}      { return INTEGER_CONSTANT; }
-{CHAR_CONSTANT}         { return CHAR_CONSTANT; }
-{STRING_LITERAL}        { return STRING_LITERAL; }
+{IDENTIFIER}            { yylval.val = strdup(yytext); return IDENTIFIER; }  
+{FLOATING_CONSTANT}     { yylval.val = strdup(yytext); return FLOATING_CONSTANT; }
+{INTEGER_CONSTANT}      { yylval.val = strdup(yytext); return INTEGER_CONSTANT; }
+{CHAR_CONSTANT}         { yylval.val = strdup(yytext); return CHAR_CONSTANT; }
+{STRING_LITERAL}        { yylval.val = strdup(yytext); return STRING_LITERAL; }
 
 {LPARENSQ}              { return LPARENSQ; }
 {RPARENSQ}              { return RPARENSQ; }

@@ -1,4 +1,5 @@
 %{
+#include<stdlib.h>
 int yylex();
 void yyerror(char *s);
 
@@ -13,10 +14,11 @@ typedef struct _node* node;
 node newnode(char *data);
 void addchild(node parent, node child);
 void printtree(node n, int depth);
+char *embed(char *base, char *val);
 %}
 
-%union { struct _node* node; }
-%token IDENTIFIER FLOATING_CONSTANT INTEGER_CONSTANT CHAR_CONSTANT STRING_LITERAL
+%union { struct _node* node; char * val; }
+%token <val> IDENTIFIER FLOATING_CONSTANT INTEGER_CONSTANT CHAR_CONSTANT STRING_LITERAL
 %token SIZEOF EXTERN STATIC AUTO REGISTER VOID CHAR SHORT INT LONG FLOAT DOUBLE SIGNED UNSIGNED BOOL_ COMPLEX_ IMAGINARY_ 
 %token CONST RESTRICT VOLATILE INLINE CASE DEFAULT IF SWITCH WHILE DO FOR GOTO CONTINUE BREAK RETURN
 %token LPARENSQ RPARENSQ LPAREN RPAREN LBRACE RBRACE
@@ -61,9 +63,9 @@ declaration_list:
 /* Expressions */
 
 primary_expression:
-        IDENTIFIER { $$ = newnode("primary_expression -> IDENTIFIER"); }
-        | constant { $$ = newnode("primary_expression -> CONSTANT"); }
-        | STRING_LITERAL { $$ = newnode("primary_expression -> STRING_LITERAL"); }
+        IDENTIFIER { char* s = embed("primary_expression -> IDENTIFIER (%S)", $1); $$ = newnode(s); free(s); free($1); }
+        | constant { $$ = newnode("primary_expression -> constant");  addchild($$, $1); }
+        | STRING_LITERAL { char*s = embed("primary_expression -> STRING_LITERAL (%s)", $1); $$ = newnode(s); free(s); free($1); }
         | LPAREN expression RPAREN { $$ = newnode("primary_expression -> LPAREN expression RPAREN"); addchild($$, $2); }
         ;
 
@@ -71,8 +73,8 @@ postfix_expression:
         primary_expression { $$ = newnode("postfix_expression -> primary_expression"); addchild($$, $1); }
         | postfix_expression LPAREN argument_expression_list_opt RPAREN { $$ = newnode("postfix_expression -> postfix_expression LPAREN argument_expression_list_opt RPAREN"); addchild($$, $1); addchild($$, $3); }
         | postfix_expression LPARENSQ expression RPARENSQ { $$ = newnode("postfix_expression -> postfix_expression LPARENSQ expression RPARENSQ"); addchild($$, $1); addchild($$, $3); }
-        | postfix_expression DOT IDENTIFIER { $$ = newnode("postfix_expression -> postfix_expression DOT IDENTIFIER"); addchild($$, $1); }
-        | postfix_expression ARROW IDENTIFIER { $$ = newnode("postfix_expression -> postfix_expression ARROW IDENTIFIER"); addchild($$, $1); }
+        | postfix_expression DOT IDENTIFIER { char* s = embed("postfix_expression -> postfix_expression DOT IDENTIFIER (%s)", $3); $$ = newnode(s); addchild($$, $1); free(s); free($3); }
+        | postfix_expression ARROW IDENTIFIER { char* s = embed("postfix_expression -> postfix_expression ARROW IDENTIFIER (%s)", $3); $$ = newnode(s); addchild($$, $1); free(s); free($3); }
         | postfix_expression INCREMENT { $$ = newnode("postfix_expression -> postfix_expression INCREMENT"); addchild($$, $1); }
         | postfix_expression DECREMENT { $$ = newnode("postfix_expression -> postfix_expression DECREMENT"); addchild($$, $1); }
         | LPAREN type_name RPAREN LBRACE initializer_list RBRACE { $$ = newnode("postfix_expression -> LPAREN type_name RPAREN LBRACE initializer_list RBRACE"); addchild($$, $2); addchild($$, $5); }
@@ -264,7 +266,7 @@ declarator:
         ;
 
 direct_declarator:
-        IDENTIFIER { $$ = newnode("direct_declarator -> IDENTIFIER"); }
+        IDENTIFIER { char* s = embed("direct_declarator -> IDENTIFIER (%s)", $1); $$ = newnode(s); free(s); free($1); }
         | LPAREN declarator RPAREN { $$ = newnode("direct_declarator -> LPAREN declarator RPAREN"); addchild($$, $2); }
         | direct_declarator LPARENSQ type_qualifier_list_opt assignment_expression_opt RPARENSQ { $$ = newnode("direct_declarator -> direct_declarator LPARENSQ type_qualifier_list_opt assignment_expression_opt RPARENSQ"); addchild($$, $1); addchild($$, $3); addchild($$, $4); }
         | direct_declarator LPARENSQ STATIC type_qualifier_list_opt assignment_expression RPARENSQ { $$ = newnode("direct_declarator -> direct_declarator LPARENSQ STATIC type_qualifier_list_opt assignment_expression RPARENSQ"); addchild($$, $1); addchild($$, $4); addchild($$, $5); }
@@ -300,8 +302,8 @@ parameter_declaration:
         ;
 
 identifier_list:
-        IDENTIFIER { $$ = newnode("identifier_list -> IDENTIFIER"); }
-        | identifier_list COMMA IDENTIFIER { $$ = newnode("identifier_list -> identifier_list COMMA IDENTIFIER"); addchild($$, $1); }
+        IDENTIFIER { char* s = embed("identifier_list -> IDENTIFIER (%s)", $1); $$ = newnode(s); free(s); free($1); }
+        | identifier_list COMMA IDENTIFIER { char* s = embed("identifier_list -> identifier_list COMMA IDENTIFIER (%s)", $3); $$ = newnode(s); addchild($$, $1); free(s); free($3); }
         ;
 
 type_name:
@@ -330,7 +332,7 @@ designator_list:
 
 designator:
         LPARENSQ constant_expression RPARENSQ { $$ = newnode("designator -> LPARENSQ constant_expression RPARENSQ"); addchild($$, $2); }
-        | DOT IDENTIFIER { $$ = newnode("designator -> DOT IDENTIFIER"); }
+        | DOT IDENTIFIER { char* s = embed("designator -> DOT IDENTIFIER (%s)", $2); $$ = newnode(s); free(s); free($2); }
         ;
 
 /* Statements */
@@ -345,7 +347,7 @@ statement:
         ;
 
 labeled_statement:
-        IDENTIFIER COLON statement { $$ = newnode("labeled_statement -> IDENTIFIER COLON statement"); addchild($$, $3); }
+        IDENTIFIER COLON statement { char* s = embed("labeled_statement -> IDENTIFIER (%s) COLON statement", $1); $$ = newnode(s); addchild($$, $3); free(s); free($1); }
         | CASE constant_expression COLON statement { $$ = newnode("labeled_statement -> CASE constant_expression COLON statement"); addchild($$, $2); addchild($$, $4); }
         | DEFAULT COLON statement { $$ = newnode("labeled_statement -> DEFAULT COLON statement"); addchild($$, $3); }
         ;
@@ -382,7 +384,7 @@ iteration_statement:
         ;
 
 jump_statement:
-        GOTO IDENTIFIER SEMICOLON { $$ = newnode("jump_statement -> GOTO IDENTIFIER SEMICOLON"); }
+        GOTO IDENTIFIER SEMICOLON { char* s = embed("jump_statement -> GOTO IDENTIFIER (%s) SEMICOLON", $2); $$ = newnode(s); free(s); free($2); }
         | CONTINUE SEMICOLON { $$ = newnode("jump_statement -> CONTINUE SEMICOLON"); }
         | BREAK SEMICOLON { $$ = newnode("jump_statement -> BREAK SEMICOLON"); }
         | RETURN expression_opt SEMICOLON { $$ = newnode("jump_statement -> RETURN expression_opt SEMICOLON"); addchild($$, $2); }
@@ -391,9 +393,9 @@ jump_statement:
 /* Constants */
 
 constant:
-        INTEGER_CONSTANT { $$ = newnode("constant -> INTEGER_CONSTANT"); }
-        | FLOATING_CONSTANT { $$ = newnode("constant -> FLOATING_CONSTANT"); }
-        | CHAR_CONSTANT { $$ = newnode("constant -> CHAR_CONSTANT"); }
+        INTEGER_CONSTANT { char* s = embed("constant -> INTEGER_CONSTANT (%s)", $1); $$ = newnode(s); free(s); free($1); }
+        | FLOATING_CONSTANT { char* s = embed("constant -> FLOATING_CONSTANT (%s)", $1); $$ = newnode(s); free(s); free($1); }
+        | CHAR_CONSTANT { char* s = embed("constant -> CHAR_CONSTANT (%s)", $1); $$ = newnode(s); free(s); free($1); }
         ;
 
 /* Optionals */

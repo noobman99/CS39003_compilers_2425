@@ -75,6 +75,16 @@ void yyerror(char *s)
     fprintf(stderr, "%s\n", s);
 }
 
+char *embed(char *base, char *val)
+{
+    int n1, n2;
+    n1 = strlen(base);
+    n2 = strlen(val);
+    char *s = (char *)malloc((n1 + n2 - 2) * sizeof(char));
+    sprintf(s, base, val);
+    return s;
+}
+
 int main()
 {
     yyparse();
