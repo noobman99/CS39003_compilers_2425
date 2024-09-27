@@ -1,7 +1,9 @@
-int main()
-{
-    int a = 10;
-    float d = 2.5;
-    char c = 'a';
-    sprintf("hello %s", c);
+int foo(int x) {
+    return sizeof(x);
+}
+
+int main () {
+    int a;
+    foo(a);
+    return 0;
 }

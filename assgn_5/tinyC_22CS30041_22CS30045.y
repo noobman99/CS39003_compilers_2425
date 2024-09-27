@@ -32,18 +32,25 @@ char *embed(char *base, char *val);
 %type <node> translation_unit external_declaration function_definition declaration_list 
 %type <node> argument_expression_list_opt expression_opt declaration_specifiers_opt init_declarator_list_opt specifier_qualifier_list_opt pointer pointer_opt declaration_list_opt block_item_list_opt type_qualifier_list_opt assignment_expression_opt identifier_list_opt designation_opt
 %type <node> constant
+%type <node> start_symbol
 %nonassoc PSEUDO_ELSE
 %nonassoc ELSE
 
-%start translation_unit
+%start start_symbol
 
 %%
+
+/* Start Symbol */
+
+start_symbol:
+        translation_unit { printtree($$, 0); }
+        ;
 
 /* External Definitions */
 
 translation_unit:
-        external_declaration { $$ = newnode("translation_unit -> external_declaration"); addchild($$, $1); printtree($$, 0); }
-        | translation_unit external_declaration { $$ = newnode("translation_unit -> translation_unit external_declaration"); addchild($$, $1); addchild($$, $2); printtree($$, 0); }
+        external_declaration { $$ = newnode("translation_unit -> external_declaration"); addchild($$, $1); }
+        | translation_unit external_declaration { $$ = newnode("translation_unit -> translation_unit external_declaration"); addchild($$, $1); addchild($$, $2); }
         ;
 
 external_declaration:
