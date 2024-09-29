@@ -71,7 +71,7 @@ declaration_list:
 /* Expressions */
 
 primary_expression:
-        IDENTIFIER { char* s = embed("primary_expression -> IDENTIFIER (%S)", $1); $$ = newnode(s); free(s); free($1); }
+        IDENTIFIER { char* s = embed("primary_expression -> IDENTIFIER (%s)", $1); $$ = newnode(s); free(s); free($1); }
         | constant { $$ = newnode("primary_expression -> constant");  addchild($$, $1); }
         | STRING_LITERAL { char*s = embed("primary_expression -> STRING_LITERAL (%s)", $1); $$ = newnode(s); free(s); free($1); }
         | LPAREN expression RPAREN { $$ = newnode("primary_expression -> LPAREN expression RPAREN"); addchild($$, $2); }
@@ -326,7 +326,7 @@ initializer:
 
 initializer_list:
         designation_opt initializer { $$ = newnode("initializer_list -> designation_opt initializer"); addchild($$, $1); addchild($$, $2); }
-        | initializer_list COMMA designation_opt initializer { $$ = newnode("initializer_list -> initializer_list COMMA designation_opt initializer"); addchild($$, $1); addchild($$, $3); }
+        | initializer_list COMMA designation_opt initializer { $$ = newnode("initializer_list -> initializer_list COMMA designation_opt initializer"); addchild($$, $1); addchild($$, $3); addchild($$, $4); }
         ;
 
 designation:
