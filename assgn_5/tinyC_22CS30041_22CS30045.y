@@ -15,6 +15,7 @@ node newnode(char *data);
 void addchild(node parent, node child);
 void printtree(node n, int depth);
 char *embed(char *base, char *val);
+void freetree(node n);
 %}
 
 %union { struct _node* node; char * val; }
@@ -43,7 +44,7 @@ char *embed(char *base, char *val);
 /* Start Symbol */
 
 start_symbol:
-        translation_unit { printtree($$, 0); }
+        translation_unit { printtree($$, 0); freetree($$); }
         ;
 
 /* External Definitions */
