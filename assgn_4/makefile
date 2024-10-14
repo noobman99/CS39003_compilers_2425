@@ -1,16 +1,17 @@
-all: y.tab.c lex.yy.c
-	gcc lex.yy.c y.tab.c main.c
+.SUFFIXES:
 
-y.tab.c: expr.y
-	yacc -d expr.y
+.PHONY: run clean
 
-lex.yy.c: expr.l
-	lex expr.l
+run: a.out
 
-run:
-	./a.out < sample.txt
+a.out: y.tab.c lex.yy.c polyutils.c
+	gcc y.tab.c lex.yy.c polyutils.c
+
+y.tab.c: poly.y
+	yacc -d poly.y
+
+lex.yy.c: poly.l
+	lex poly.l
 
 clean:
-	rm -f ./*.out
-	rm y.tab.*
-	rm lex.yy.c
+	rm -f y.tab.c y.tab.h lex.yy.c a.out

@@ -1,11 +1,16 @@
-run: a.out
-	./a.out < ass3_22CS30041_22CS30045_test.c
+all: y.tab.c lex.yy.c
+	gcc lex.yy.c y.tab.c main.c
 
-lexfile:
-	flex ass3_22CS30041_22CS30045.l
+y.tab.c: expr.y
+	yacc -d expr.y
 
-a.out: lexfile
-	gcc lex.yy.c ass3_22CS30041_22CS30045.c
+lex.yy.c: expr.l
+	lex expr.l
+
+run:
+	./a.out < sample.txt
 
 clean:
-	rm -f ./a.out ./lex.yy.c
+	rm -f ./*.out
+	rm y.tab.*
+	rm lex.yy.c
