@@ -1,12 +1,21 @@
-run: compile
-	./a.out < input_22CS30041_22CS30045.c > output_22CS30041_22CS30045.txt
+.SUFFIXES:
 
-compile:
-	yacc -d tinyC_22CS30041_22CS30045.y
-	lex tinyC_22CS30041_22CS30045.l
-	gcc lex.yy.c y.tab.c tinyC_22CS30041_22CS30045.c
+.PHONY: run all clean
+
+all: y.tab.c lex.yy.c intcodegen.c
+	gcc -o icgen y.tab.c lex.yy.c intcodegen.c
+
+y.tab.c: expr.y
+	yacc -d expr.y
+
+lex.yy.c: expr.l
+	lex expr.l
+
+run: all
+	./icgen < sample.txt 
+	gcc -o ic intcode.c
+	./ic > output.txt
+	echo "Output of ic is in output.txt"
 
 clean:
-	rm -f ./*.out
-	rm y.tab.*
-	rm lex.yy.c
+	rm -f y.tab.c y.tab.h lex.yy.c intcode.c icgen ic output.txt
