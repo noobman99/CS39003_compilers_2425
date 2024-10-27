@@ -1,8 +1,9 @@
 %{
-#include<stdlib.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include "tinyC_22CS30041_22CS30045_translator.h"
 #include "y.tab.h"
-void yyerror(char* s);
-int yylex();
+
 %}
 
 AUTO		            "auto"
@@ -58,8 +59,8 @@ ASTERISK                "*"
 PLUS                    "+"
 MINUS                   "-"
 TILDE                   "~"
-NOT             "!"
-DIV                   "/"
+NOT                     "!"
+DIV                     "/"
 PERCENT                 "%"
 LSHIFT                  "<<"
 RSHIFT                  ">>"
@@ -137,12 +138,12 @@ WS                      [ \t]
 {ELSE}		            { return ELSE; }
 {ENUM}		            { /* return ENUM; */ }
 {EXTERN}		        { return EXTERN; }
-{FLOAT}		            { return FLOAT; }
+{FLOAT}		            { return FLOAT_TYPE; }
 {FOR}		            { return FOR; }
 {GOTO}		            { return GOTO; }
 {IF}		            { return IF; }
 {INLINE}		        { return INLINE; }
-{INT}		            { return INT; }
+{INT}		            { return INT_TYPE; }
 {LONG}		            { return LONG; }
 {REGISTER}		        { return REGISTER; }
 {RESTRICT}		        { return RESTRICT; }
@@ -163,18 +164,18 @@ WS                      [ \t]
 {COMPLEX_}		        { return COMPLEX_; }
 {IMAGINARY_}		    { return IMAGINARY_; }
 
-{IDENTIFIER}            { yylval.val = strdup(yytext); return IDENTIFIER; }  
+{IDENTIFIER}            { yylval.symbol = currentST->lookup(yytext); return IDENTIFIER; }  
 {FLOATING_CONSTANT}     { yylval.val = strdup(yytext); return FLOATING_CONSTANT; }
-{INTEGER_CONSTANT}      { yylval.val = strdup(yytext); return INTEGER_CONSTANT; }
+{INTEGER_CONSTANT}      { yylval.ival = atoi(yytext); return INTEGER_CONSTANT; }
 {CHAR_CONSTANT}         { yylval.val = strdup(yytext); return CHAR_CONSTANT; }
 {STRING_LITERAL}        { yylval.val = strdup(yytext); return STRING_LITERAL; }
 
-{LPARENSQ}              { return LPARENSQ; }
-{RPARENSQ}              { return RPARENSQ; }
 {LPAREN}                { return LPAREN; }
 {RPAREN}                { return RPAREN; }
 {LBRACE}                { return LBRACE; }
 {RBRACE}                { return RBRACE; }
+{LPARENSQ}              { return LPARENSQ; }
+{RPARENSQ}              { return RPARENSQ; }
 {DOT}                   { return DOT; }
 {ARROW}                 { return ARROW; }
 {INCREMENT}             { return INCREMENT; }
@@ -220,10 +221,8 @@ WS                      [ \t]
 {WS}                    { }
 {NEWLINE}               { yylineno++; }
 
-.                       { }
+.                       { return UNEXPECTED_TOKEN; } // if no matches, return unexpected token
 
 %%
 
-int yywrap() {
-    return 1;
-}
+int yywrap() { return 1; }
