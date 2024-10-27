@@ -12,11 +12,14 @@ extern int yyparse();
 using namespace std;
 
 // defining size of data types (can be changed as it is machine-dependent)
-#define SIZE_OF_VOID 0
-#define SIZE_OF_CHAR 1
-#define SIZE_OF_INT 4
-#define SIZE_OF_FLOAT 8
-#define SIZE_OF_POINTER 4
+#define __VOID_SIZE 0
+#define __FUNCTION_SIZE 0
+#define __CHARACTER_SIZE 1
+#define __INTEGER_SIZE 4
+#define __POINTER_SIZE 4
+#define __FLOAT_SIZE 8
+
+#define __PRINT_TABLE_WIDTH 20
 
 // Classes
 class SymType;    // type of a symbol

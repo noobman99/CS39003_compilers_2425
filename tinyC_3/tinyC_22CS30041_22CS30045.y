@@ -1059,9 +1059,20 @@ declarator:
             while(temp->arr_type != NULL) 
                 temp = temp->arr_type;
 
+            SymType* t_base = $2->type;
+            SymType* prev = NULL;
+            while(t_base->arr_type != NULL) 
+                prev = t_base,
+                t_base = t_base->arr_type;
+
             // updating type of declarator
-            temp->arr_type = $2->type;
-            $$ = $2->update($1);
+            temp->arr_type = t_base;
+            if (prev != NULL) 
+                {prev->arr_type = $1;
+                $$ = $2;}
+            else 
+                {$$ = $2->update($1);}
+            // $$ = $2->update($1);
         }
 
     | direct_declarator
@@ -1167,6 +1178,9 @@ direct_declarator:
                 Symbol* s = currentST->lookup("return");
                 s->update($1->type);
             }
+            SymType* t = new SymType(FUNCTION);
+            t->arr_type = $1->type;
+            $1->update(t);
 
             // set nested table for function
             $1->nestedST = currentST;
@@ -1184,10 +1198,13 @@ direct_declarator:
             // same as previous one
             currentST->name = $1->name;
 
-            if($1->type->type != VOID) {
+            if($1->type->type != VOID && $1->type->type != FUNCTION) {
                 Symbol* s = currentST->lookup("return");
                 s->update($1->type);
             }
+            SymType* t = new SymType(FUNCTION);
+            t->arr_type = $1->type;
+            $1->update(t);
 
             // set nested table for function
             $1->nestedST = currentST;

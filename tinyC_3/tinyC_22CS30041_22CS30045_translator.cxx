@@ -1,5 +1,5 @@
 #include "tinyC_22CS30041_22CS30045_translator.h"
-
+#include <iomanip>
 // Global variables
 vector<Quad *> qArr;    // array of quads (implemented as a simple vector for convenience)
 SymTable *currentST;    // current symbol table being used
@@ -17,23 +17,26 @@ int SymType::computeSize()
 {
 
     if (this->type == VOID)
-        return SIZE_OF_VOID;
+        return __VOID_SIZE;
 
     else if (this->type == CHAR)
-        return SIZE_OF_CHAR;
+        return __CHARACTER_SIZE;
 
     else if (this->type == INT)
-        return SIZE_OF_INT;
+        return __INTEGER_SIZE;
 
     else if (this->type == FLOAT)
-        return SIZE_OF_FLOAT;
+        return __FLOAT_SIZE;
 
     else if (this->type == POINTER)
-        return SIZE_OF_POINTER;
+        return __POINTER_SIZE;
 
     // depends on type of constituent elements
     else if (this->type == ARRAY)
         return this->width * (this->arr_type->computeSize());
+
+    else if (this->type == FUNCTION)
+        return __FUNCTION_SIZE;
 
     else
         return -1;
@@ -59,7 +62,7 @@ string SymType::toString()
         return "ptr(" + this->arr_type->toString() + ")";
 
     else if (this->type == FUNCTION)
-        return "funct";
+        return "funct(" + this->arr_type->toString() + ")";
 
     else if (this->type == ARRAY)
         return "array(" + to_string(this->width) + ", " + this->arr_type->toString() + ")";
@@ -133,22 +136,36 @@ void SymTable::print()
 {
 
     // header for the table
-    cout << "---------------------------------------------------------------------------------------------" << endl;
+    for (int i = 0; i < (__PRINT_TABLE_WIDTH * 7.5); i++)
+        cout << "-";
+    cout << endl;
+
     cout << "Symbol Table : " << this->name << "\t\t\t\t\t\tParent: " << (this->parent == NULL ? "NULL" : this->parent->name) << endl;
-    cout << "---------------------------------------------------------------------------------------------" << endl;
-    cout << "Name\t\t\tType\t\tInitial Value\tSize\tOffset\t\tNested Table" << endl;
+
+    for (int i = 0; i < (__PRINT_TABLE_WIDTH * 7.5); i++)
+        cout << "-";
+    cout << endl;
+
+    cout << left << setw(__PRINT_TABLE_WIDTH * 1.5) << "Name";
+    cout << left << setw(__PRINT_TABLE_WIDTH * 2) << "Type";
+    cout << left << setw(__PRINT_TABLE_WIDTH) << "InitVal";
+    cout << left << setw(__PRINT_TABLE_WIDTH) << "Size";
+    cout << left << setw(__PRINT_TABLE_WIDTH) << "Offset";
+    cout << left << setw(__PRINT_TABLE_WIDTH) << "Nested Table";
+    cout << endl;
 
     vector<SymTable *> nested_tables;
 
     list<Symbol>::iterator it = (this->symbols).begin();
     while (it != (this->symbols).end())
     {
-        cout << it->name << "\t\t\t\t"
-             << it->type->toString() << "\t\t"
-             << it->init_val << "\t\t\t\t"
-             << it->size << "\t\t"
-             << it->offset << "\t\t\t"
-             << (it->nestedST == NULL ? "NULL" : it->nestedST->name) << endl;
+        cout << left << setw(__PRINT_TABLE_WIDTH * 1.5) << it->name;
+        cout << left << setw(__PRINT_TABLE_WIDTH * 2) << it->type->toString();
+        cout << left << setw(__PRINT_TABLE_WIDTH) << it->init_val;
+        cout << left << setw(__PRINT_TABLE_WIDTH) << it->size;
+        cout << left << setw(__PRINT_TABLE_WIDTH) << it->offset;
+        cout << left << setw(__PRINT_TABLE_WIDTH) << (it->nestedST == NULL ? "NULL" : it->nestedST->name);
+        cout << endl;
 
         // nested tables stored to print them later on, recursively
         if (it->nestedST != NULL)
@@ -158,7 +175,9 @@ void SymTable::print()
     }
 
     // gap before printing nested tables
-    cout << "---------------------------------------------------------------------------------------------" << endl;
+    for (int i = 0; i < (__PRINT_TABLE_WIDTH * 7.5); i++)
+        cout << "-";
+    cout << endl;
     cout << endl;
 
     // print nested tables
