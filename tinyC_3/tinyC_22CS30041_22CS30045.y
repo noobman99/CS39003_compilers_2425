@@ -111,8 +111,10 @@ CT:
 // to change symbol table, in case of blocks (like if statements)
 CB: 
     {
+        isDeclaration = true;
         string name = currentST->name + "_" + to_string(block_count++); // name for new ST
         Symbol *s = currentST->lookup(name); 
+        isDeclaration = false;
         s->nestedST = new SymTable(name, currentST);
         s->type = new SymType(BLOCK);
         current_symbol = s;
@@ -212,7 +214,7 @@ postfix_expression:
         { 
             // function call
             $$ = new Array();
-            $$->symbol = gentemp($1->symbol->type->type);
+            $$->symbol = gentemp($1->symbol->type->arr_type->type);
             emit("call", $$->symbol->name, $1->symbol->name, to_string($3));
         }
 
@@ -962,23 +964,27 @@ type_specifier:
     VOID_TYPE
         { 
             current_type = VOID;
+            isDeclaration = true;
         }
 
     | CHAR_TYPE
         { 
             current_type = CHAR;
+            isDeclaration = true;
         }
     | SHORT
         { }
     | INT_TYPE
         { 
             current_type = INT;
+            isDeclaration = true;
         }
     | LONG
         { }
     | FLOAT_TYPE
         { 
             current_type = FLOAT;
+            isDeclaration = true;
         }
     | DOUBLE
         { }
@@ -1062,8 +1068,8 @@ declarator:
             SymType* t_base = $2->type;
             SymType* prev = NULL;
             while(t_base->arr_type != NULL) 
-                prev = t_base,
-                t_base = t_base->arr_type;
+                {prev = t_base,
+                t_base = t_base->arr_type;}
 
             // updating type of declarator
             temp->arr_type = t_base;
@@ -1072,11 +1078,14 @@ declarator:
                 $$ = $2;}
             else 
                 {$$ = $2->update($1);}
-            // $$ = $2->update($1);
+
+            isDeclaration = false;
         }
 
     | direct_declarator
-        { }
+        { 
+            isDeclaration = false;
+        }
     ;
 
 /*

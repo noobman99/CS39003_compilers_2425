@@ -129,7 +129,7 @@ WS                      [ \t]
 {AUTO}		            { return AUTO; }
 {BREAK}		            { return BREAK; }
 {CASE}		            { return CASE; }
-{CHAR}		            { return CHAR; }
+{CHAR}		            { return CHAR_TYPE; }
 {CONST}		            { return CONST; }
 {CONTINUE}		        { return CONTINUE; }
 {DEFAULT}		        { return DEFAULT; }
@@ -157,7 +157,7 @@ WS                      [ \t]
 {TYPEDEF}		        { /* return TYPEDEF; */ }
 {UNION}		            { /* return UNION; */ }
 {UNSIGNED}		        { return UNSIGNED; }
-{VOID}		            { return VOID; }
+{VOID}		            { return VOID_TYPE; }
 {VOLATILE}		        { return VOLATILE; }
 {WHILE}		            { return WHILE; }
 {BOOL_}		            { return BOOL_; }

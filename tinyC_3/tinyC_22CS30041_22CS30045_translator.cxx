@@ -7,6 +7,9 @@ SymTable *globalST;     // global symbol table (parent of all symbol tables)
 int block_count;        // block count which is used while generating names for new symbol tables
 Symbol *current_symbol; // current symbol - for changing ST if required
 TYPE current_type;      // current type - for type casting if required
+bool isDeclaration;     // to check if the statement is a declaration or not
+
+extern void yyerror(const char *s);
 
 // SymType class methods
 
@@ -85,8 +88,28 @@ Symbol *SymTable::lookup(string name)
     while (it != (this->symbols).end())
     {
         if (it->name == name)
+        {
+            if (isDeclaration && name != "return")
+            {
+                string s = "Error: Redeclaration of variable " + name + " in the same scope";
+                yyerror(s.c_str());
+                exit(1);
+            }
             return &(*it);
+        }
         it++;
+    }
+
+    if (!isDeclaration && name != "return")
+    {
+        if (this->parent != NULL)
+            return this->parent->lookup(name);
+        else
+        {
+            string s = "Variable " + name + " not declared";
+            yyerror(s.c_str());
+            exit(1);
+        }
     }
 
     // if it doesnt exist, add it to the table and return it
@@ -141,6 +164,7 @@ void SymTable::print()
     cout << endl;
 
     cout << "Symbol Table : " << this->name << "\t\t\t\t\t\tParent: " << (this->parent == NULL ? "NULL" : this->parent->name) << endl;
+    cout << "Number of symbols: " << (this->symbols).size() << endl;
 
     for (int i = 0; i < (__PRINT_TABLE_WIDTH * 7.5); i++)
         cout << "-";
@@ -160,10 +184,15 @@ void SymTable::print()
     while (it != (this->symbols).end())
     {
         cout << left << setw(__PRINT_TABLE_WIDTH * 1.5) << it->name;
+        cout.flush();
         cout << left << setw(__PRINT_TABLE_WIDTH * 2) << it->type->toString();
+        cout.flush();
         cout << left << setw(__PRINT_TABLE_WIDTH) << it->init_val;
+        cout.flush();
         cout << left << setw(__PRINT_TABLE_WIDTH) << it->size;
+        cout.flush();
         cout << left << setw(__PRINT_TABLE_WIDTH) << it->offset;
+        cout.flush();
         cout << left << setw(__PRINT_TABLE_WIDTH) << (it->nestedST == NULL ? "NULL" : it->nestedST->name);
         cout << endl;
 
@@ -484,6 +513,7 @@ int main()
 
     globalST = new SymTable("global"); // create global ST and set it as current
     currentST = globalST;
+    isDeclaration = true;
 
     yyparse();
 

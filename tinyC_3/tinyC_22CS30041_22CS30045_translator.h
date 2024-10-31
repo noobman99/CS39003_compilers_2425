@@ -159,6 +159,7 @@ extern SymTable *globalST;     // global symbol table (parent of all symbol tabl
 extern int block_count;        // block count which is used while generating names for new symbol tables
 extern Symbol *current_symbol; // current symbol - for changing ST if required
 extern TYPE current_type;      // current type - for type casting if required
+extern bool isDeclaration;     // to check if the statement is a declaration or not
 
 // overloaded emit functions corresponding to quad constructors
 void emit(string, string, string = "", string = "");
