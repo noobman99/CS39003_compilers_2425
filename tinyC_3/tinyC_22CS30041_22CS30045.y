@@ -944,7 +944,8 @@ init_declarator:
         }
     | declarator ASSIGN initializer
         {   
-            if($3->init_val != "-") $1->init_val = $3->init_val;
+            $3 = $3->convert($1->type->type);
+            if($3->init_val != "-" && $1->type->type == $3->type->type) $1->init_val = $3->init_val;
             emit("=", $1->name, $3->name);
         }
     ;
@@ -1392,6 +1393,7 @@ compound_statement:
     LBRACE CB CT block_item_list_opt RBRACE
         { 
             $$ = $4;
+            backpatch($4->nextlist, nextinstr()); // Backpatching
             changeTable(currentST->parent); // return to parent ST
         }
     ;
@@ -1573,6 +1575,11 @@ function_definition:
         { 
             block_count = 0; // Reset block count for function
             $2->type->type = FUNCTION;
+            if ($6->nextlist.size() > 0) {
+                backpatch($6->nextlist, nextinstr()); // Backpatching
+                SymType *basetyp = $2->type->arr_type;
+                emit("return", basetyp->type == VOID ? "" : "0"); // Return statement for void functions
+            }
             changeTable(globalST); // Return to global ST
         }
     ;
