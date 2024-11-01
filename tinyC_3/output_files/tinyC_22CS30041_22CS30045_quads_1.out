@@ -1,10 +1,3 @@
-Updating symbol main with type int
-Updating symbol return with type int
-Updating symbol main with type funct(int)
-Updating symbol a with type int
-Updating symbol b with type int
-Updating symbol c with type int
-Updating symbol t2 with type int
 ------------------------------------------------------------------------------------------------------------------------------------------------------
 Symbol Table : global						Parent: NULL
 ------------------------------------------------------------------------------------------------------------------------------------------------------

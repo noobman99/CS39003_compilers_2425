@@ -255,8 +255,6 @@ Symbol *Symbol::update(SymType *new_type)
 {
     // Update symbol type and recompute size
     // Store new type information
-    cout << "Updating symbol " << this->name << " with type " << new_type->toString() << endl;
-
     Symbol *current = this;
     current->type = new_type;
 

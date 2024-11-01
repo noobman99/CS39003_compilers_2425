@@ -521,7 +521,7 @@ additive_expression:
             // Addition operation, but type compatibility is checked
             if(typecheck($1->symbol, $3->symbol)) {
                 $$ = new Expression();
-                $$->symbol = gentemp(INT);
+                $$->symbol = gentemp($1->symbol->type->type);
                 $$->symbol->update($1->symbol->type);
                 // cout << "TYPE is " << $$->symbol->type->arr_type->type << endl;
                 emit("+", $$->symbol->name, $1->symbol->name, $3->symbol->name);
@@ -537,6 +537,7 @@ additive_expression:
             if(typecheck($1->symbol, $3->symbol)) {
                 $$ = new Expression();
                 $$->symbol = gentemp($1->symbol->type->type);
+                $$->symbol->update($1->symbol->type);
                 emit("-", $$->symbol->name, $1->symbol->name, $3->symbol->name);
             } 
             else {
