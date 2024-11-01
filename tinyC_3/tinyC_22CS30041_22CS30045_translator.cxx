@@ -24,6 +24,8 @@
  * 
  * current_type: Tracks the active data type for type checking and
  *              casting operations during translation
+ * 
+ * isDeclaration: Flag to check if the current symbol is being declared
  */
 vector<Quad *> qArr;
 TYPE current_type;

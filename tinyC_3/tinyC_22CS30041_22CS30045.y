@@ -205,7 +205,9 @@ postfix_expression:
 
             // Check for multi-dimensional array
             if($1->type == Array::ARRAY) {
-                // Multi-dimensional array
+                // For multi-dimensional arrays:
+                // 1. Multiply index by element size
+                // 2. Add to previous dimension's offset
                 Symbol *sym = gentemp(INT);
                 int size = $$->subarr_type->computeSize();
                 emit("*", sym->name, $3->symbol->name, to_string(size));
@@ -309,14 +311,14 @@ unary_expression:
             // Operation depends on unary operator
             $$ = new Array();
 
-            if(strcmp($1, "&") == 0) {
+            if(!strcmp($1, "&")) {
                 // Address of -> generate new pointer type
                 $$->symbol = gentemp(POINTER);
                 $$->symbol->type->arr_type = $2->symbol->type;
                 emit("=&", $$->symbol->name, $2->symbol->name);
             } 
             
-            else if(strcmp($1, "*") == 0) {
+            else if(!strcmp($1, "*")) {
                 // Dereferencing
                 $$->symbol = $2->symbol;
                 $$->loc = gentemp($2->loc->type->arr_type->type);
@@ -325,7 +327,7 @@ unary_expression:
                 emit("=*", $$->loc->name, $2->loc->name);
             } 
 
-            else if(strcmp($1, "+") == 0) {
+            else if(!strcmp($1, "+")) {
                 // Unary plus
                 $$ = $2;
             } 
@@ -334,7 +336,7 @@ unary_expression:
                 $$ = new Array();
                 $$->symbol = gentemp($2->symbol->type->type);
                 
-                if (strcmp($1,"-")==0)
+                if (!strcmp($1,"-"))
                     emit("=-", $$->symbol->name, "0", $2->symbol->name); // to differentiate between unary and binary minus
                 else
                     emit($1, $$->symbol->name, $2->symbol->name);
@@ -449,55 +451,61 @@ multiplicative_expression:
 
     | multiplicative_expression DIV cast_expression
         { 
-            SymType *bType = $1->symbol->type;
-            while(bType->arr_type != NULL)
-                bType = bType->arr_type;
+            // Get the base type of the first operand
+            SymType *baseType = $1->symbol->type;
+            for(; baseType->arr_type; baseType = baseType->arr_type);
 
-            Symbol *temp;
-
+            // Handle the second operand based on its type
+            Symbol *operand2;
             if($3->type == Array::ARRAY) {
-                temp = gentemp(bType->type);
-                emit("=[]", temp->name, $3->symbol->name, $3->loc->name);
-            } 
-            else if($3->type == Array::POINTER)
-                temp = $3->loc;
-            else
-                temp = $3->symbol;
+                // For array type, create temporary and load value
+                operand2 = gentemp(baseType->type); 
+                emit("=[]", operand2->name, $3->symbol->name, $3->loc->name);
+            }
+            else {
+                // For pointer/normal variable, use directly
+                operand2 = ($3->type == Array::POINTER) ? $3->loc : $3->symbol;
+            }
 
-            if(typecheck($1->symbol, temp)) {
+            // Create result only if types are compatible
+            if(!typecheck($1->symbol, operand2)) {
+                yyerror("Type mismatch!");
+            }
+            else {
+                // Generate division operation
                 $$ = new Expression();
                 $$->symbol = gentemp($1->symbol->type->type);
-                emit("/", $$->symbol->name, $1->symbol->name, temp->name);
-            } 
-            else {
-                yyerror("Type mismatch!");
+                emit("/", $$->symbol->name, $1->symbol->name, operand2->name);
             }
         }
 
     | multiplicative_expression MOD cast_expression
         { 
-            SymType *bType = $1->symbol->type;
-            while(bType->arr_type != NULL)
-                bType = bType->arr_type;
+            // Get the base type of the first operand
+            SymType *baseType = $1->symbol->type;
+            for(; baseType->arr_type; baseType = baseType->arr_type);
 
-            Symbol *temp;
-
+            // Handle the second operand based on its type
+            Symbol *operand2;
             if($3->type == Array::ARRAY) {
-                temp = gentemp(bType->type);
-                emit("=[]", temp->name, $3->symbol->name, $3->loc->name);
-            } 
-            else if($3->type == Array::POINTER)
-                temp = $3->loc;
-            else
-                temp = $3->symbol;
+                // For array type, create temporary and load value
+                operand2 = gentemp(baseType->type); 
+                emit("=[]", operand2->name, $3->symbol->name, $3->loc->name);
+            }
+            else {
+                // For pointer/normal variable, use directly
+                operand2 = ($3->type == Array::POINTER) ? $3->loc : $3->symbol;
+            }
 
-            if(typecheck($1->symbol, temp)) {
+            // Create result only if types are compatible
+            if(!typecheck($1->symbol, operand2)) {
+                yyerror("Type mismatch!");
+            }
+            else {
+                // Generate modulo operation
                 $$ = new Expression();
                 $$->symbol = gentemp($1->symbol->type->type);
-                emit("%", $$->symbol->name, $1->symbol->name, temp->name);
-            } 
-            else {
-                yyerror("Type mismatch!");
+                emit("%", $$->symbol->name, $1->symbol->name, operand2->name);
             }
         }
     ;
