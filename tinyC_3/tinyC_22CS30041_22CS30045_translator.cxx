@@ -208,10 +208,15 @@ void SymTable::print()
     for (; it != (this->symbols).end(); it++)
     {
         cout << left << setw(__PRINT_TABLE_WIDTH * 1.5) << it->name;
+        // cout.flush();
         cout << left << setw(__PRINT_TABLE_WIDTH * 2) << it->type->toString();
+        // cout.flush();
         cout << left << setw(__PRINT_TABLE_WIDTH) << it->init_val;
+        // cout.flush();
         cout << left << setw(__PRINT_TABLE_WIDTH) << it->size;
+        // cout.flush();
         cout << left << setw(__PRINT_TABLE_WIDTH) << it->offset;
+        // cout.flush();
         cout << left << setw(__PRINT_TABLE_WIDTH) << (it->nestedST == NULL ? "NULL" : it->nestedST->name);
         cout << endl;
 
@@ -250,6 +255,8 @@ Symbol *Symbol::update(SymType *new_type)
 {
     // Update symbol type and recompute size
     // Store new type information
+    cout << "Updating symbol " << this->name << " with type " << new_type->toString() << endl;
+
     Symbol *current = this;
     current->type = new_type;
 
@@ -564,7 +571,8 @@ Symbol *gentemp(TYPE type, string val)
     currentST->count += 1;
     Symbol *s = new Symbol(name, type, val);
     currentST->symbols.push_back(*s);
-    return s;
+    // return s;
+    return &(currentST->symbols).back();
 }
 
 void changeTable(SymTable *ST) { currentST = ST; }

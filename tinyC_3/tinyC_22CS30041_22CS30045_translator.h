@@ -85,24 +85,23 @@ public:
     Symbol(string, TYPE = INT, string = "-"); // Constructor taking name, type and initial value
 
     Symbol *update(SymType *); // Updates symbol type and related attributes
-
-    Symbol *convert(TYPE); // Performs type conversion of symbol to specified type
+    Symbol *convert(TYPE);     // Performs type conversion of symbol to specified type
 };
 
 class Quad
 {
 public:
     // res = arg1 op arg2
-    string op;      // Operator or instruction type
-    string arg1;    // First operand 
-    string arg2;    // Second operand (optional)
-    string res;     // Result or target
+    string op;   // Operator or instruction type
+    string arg1; // First operand
+    string arg2; // Second operand (optional)
+    string res;  // Result or target
 
     // Constructors for different operand types
-    Quad(string op_, string arg1_, string arg2_ = "", string res_ = "");  // For string operands
-    Quad(string op_, int val_, string arg2_ = "", string res_ = "");      // For integer operands
+    Quad(string op_, string arg1_, string arg2_ = "", string res_ = ""); // For string operands
+    Quad(string op_, int val_, string arg2_ = "", string res_ = "");     // For integer operands
 
-    void print();   // Print the quad in readable format
+    void print(); // Print the quad in readable format
 };
 
 class QuadArray
@@ -114,32 +113,32 @@ public:
 class Expression
 {
 public:
-    Symbol *symbol;      // Pointer to symbol table entry for this expression
+    Symbol *symbol; // Pointer to symbol table entry for this expression
     enum typeEnum
     {
-        NONBOOLEAN,     // Expression evaluates to a non-boolean value (e.g. integer)
-        BOOLEAN         // Expression evaluates to a boolean value
-    } type;             // Tracks whether expression is boolean or non-boolean
-    list<int> truelist; // List of instructions that branch when expression is true
-    list<int> falselist;// List of instructions that branch when expression is false  
-    list<int> nextlist; // List of instructions that need address of next instruction
+        NONBOOLEAN,      // Expression evaluates to a non-boolean value (e.g. integer)
+        BOOLEAN          // Expression evaluates to a boolean value
+    } type;              // Tracks whether expression is boolean or non-boolean
+    list<int> truelist;  // List of instructions that branch when expression is true
+    list<int> falselist; // List of instructions that branch when expression is false
+    list<int> nextlist;  // List of instructions that need address of next instruction
 
-    void conv2Int();    // Converts a boolean expression to equivalent integer value (0/1)
+    void conv2Int(); // Converts a boolean expression to equivalent integer value (0/1)
 
-    void conv2Bool();   // Converts an integer expression to equivalent boolean condition
+    void conv2Bool(); // Converts an integer expression to equivalent boolean condition
 };
 
 class Array
 {
 public:
-    Symbol *loc;          // Base address used for array offset calculations
+    Symbol *loc; // Base address used for array offset calculations
     enum typeEnum
     {
-        NEITHER,         // Not an array or pointer type
-        POINTER,         // Pointer type (single memory location)
-        ARRAY           // Array type (contiguous memory block)
-    } type;              // Tracks whether this represents an array, pointer or neither
-    Symbol *symbol;      // Symbol table entry associated with this array
+        NEITHER,          // Not an array or pointer type
+        POINTER,          // Pointer type (single memory location)
+        ARRAY             // Array type (contiguous memory block)
+    } type;               // Tracks whether this represents an array, pointer or neither
+    Symbol *symbol;       // Symbol table entry associated with this array
     SymType *subarr_type; // Type information for array elements (used for nested arrays)
 };
 
@@ -156,26 +155,26 @@ extern SymTable *globalST;     // Root symbol table containing program-wide symb
 extern int block_count;        // Counter for generating unique nested block identifiers
 extern Symbol *current_symbol; // Symbol being processed during scope transitions
 extern TYPE current_type;      // Active data type for type checking and casting
-extern bool isDeclaration;    // Indicates if current symbol is being declared
+extern bool isDeclaration;     // Indicates if current symbol is being declared
 
 // Emit functions to generate quadruple instructions
 // Overloaded versions for different argument types
-void emit(string, string, string = "", string = "");  // For string arguments
-void emit(string, string, int, string = "");          // For integer arguments
+void emit(string, string, string = "", string = ""); // For string arguments
+void emit(string, string, int, string = "");         // For integer arguments
 
 // Core backpatching and list management functions
-list<int> makelist(int);                // Creates new list with single instruction number
-list<int> merge(list<int>, list<int>);  // Concatenates two instruction lists
-void backpatch(list<int>, int);         // Fills target addresses in instruction list
+list<int> makelist(int);               // Creates new list with single instruction number
+list<int> merge(list<int>, list<int>); // Concatenates two instruction lists
+void backpatch(list<int>, int);        // Fills target addresses in instruction list
 
 // Type checking functions
-bool typecheck(Symbol *&, Symbol *&);    // Checks type compatibility between symbols
-bool typecheck(SymType *, SymType *);    // Checks type compatibility between type objects
+bool typecheck(Symbol *&, Symbol *&); // Checks type compatibility between symbols
+bool typecheck(SymType *, SymType *); // Checks type compatibility between type objects
 
 // Utility functions for translation
-int nextinstr();                         // Gets index for next instruction
-Symbol *gentemp(TYPE, string = "-");     // Creates new temporary with given type
-void changeTable(SymTable *);            // Switches active symbol table
-void printQuadArray();                   // Displays generated intermediate code
+int nextinstr();                     // Gets index for next instruction
+Symbol *gentemp(TYPE, string = "-"); // Creates new temporary with given type
+void changeTable(SymTable *);        // Switches active symbol table
+void printQuadArray();               // Displays generated intermediate code
 
 #endif
