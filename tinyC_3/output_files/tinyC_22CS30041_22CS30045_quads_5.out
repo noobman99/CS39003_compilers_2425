@@ -1,0 +1,36 @@
+Updating symbol main with type int
+Updating symbol return with type int
+Updating symbol main with type funct(int)
+Updating symbol arr with type int
+Updating symbol arr with type array(5, int)
+Updating symbol p with type int
+Updating symbol p with type ptr(int)
+Updating symbol t2 with type ptr(int)
+------------------------------------------------------------------------------------------------------------------------------------------------------
+Symbol Table : global						Parent: NULL
+------------------------------------------------------------------------------------------------------------------------------------------------------
+Name                          Type                                    InitVal             Size                Offset              Nested Table        
+main                          funct(int)                              -                   0                   0                   main                
+------------------------------------------------------------------------------------------------------------------------------------------------------
+
+------------------------------------------------------------------------------------------------------------------------------------------------------
+Symbol Table : main						Parent: global
+------------------------------------------------------------------------------------------------------------------------------------------------------
+Name                          Type                                    InitVal             Size                Offset              Nested Table        
+return                        int                                     -                   4                   0                   NULL                
+arr                           array(5, int)                           -                   20                  4                   NULL                
+t0                            int                                     5                   4                   24                  NULL                
+p                             ptr(int)                                -                   4                   28                  NULL                
+t1                            int                                     2                   4                   32                  NULL                
+t2                            ptr(int)                                -                   4                   36                  NULL                
+t3                            int                                     -                   4                   40                  NULL                
+------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Three Address Codes:
+1: main:
+2: t0 = 5
+3: p = arr
+4: t1 = 2
+5: t2 = p + t1
+6: t3 = *t2
+7: return t3

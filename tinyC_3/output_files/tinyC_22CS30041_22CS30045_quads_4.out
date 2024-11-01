@@ -1,0 +1,51 @@
+Updating symbol add with type int
+Updating symbol x with type int
+Updating symbol y with type int
+Updating symbol return with type int
+Updating symbol add with type funct(int)
+Updating symbol t0 with type int
+Updating symbol main with type int
+Updating symbol return with type int
+Updating symbol main with type funct(int)
+Updating symbol result with type int
+------------------------------------------------------------------------------------------------------------------------------------------------------
+Symbol Table : global						Parent: NULL
+------------------------------------------------------------------------------------------------------------------------------------------------------
+Name                          Type                                    InitVal             Size                Offset              Nested Table        
+add                           funct(int)                              -                   0                   0                   add                 
+main                          funct(int)                              -                   0                   0                   main                
+------------------------------------------------------------------------------------------------------------------------------------------------------
+
+------------------------------------------------------------------------------------------------------------------------------------------------------
+Symbol Table : add						Parent: global
+------------------------------------------------------------------------------------------------------------------------------------------------------
+Name                          Type                                    InitVal             Size                Offset              Nested Table        
+x                             int                                     -                   4                   0                   NULL                
+y                             int                                     -                   4                   4                   NULL                
+return                        int                                     -                   4                   8                   NULL                
+t0                            int                                     -                   4                   12                  NULL                
+------------------------------------------------------------------------------------------------------------------------------------------------------
+
+------------------------------------------------------------------------------------------------------------------------------------------------------
+Symbol Table : main						Parent: global
+------------------------------------------------------------------------------------------------------------------------------------------------------
+Name                          Type                                    InitVal             Size                Offset              Nested Table        
+return                        int                                     -                   4                   0                   NULL                
+result                        int                                     -                   4                   4                   NULL                
+t0                            int                                     3                   4                   8                   NULL                
+t1                            int                                     4                   4                   12                  NULL                
+t2                            int                                     -                   4                   16                  NULL                
+------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Three Address Codes:
+1: add:
+2: t0 = x + y
+3: return t0
+4: main:
+5: t0 = 3
+6: param t0
+7: t1 = 4
+8: param t1
+9: t2 = call add, 2
+10: result = t2
+11: return result

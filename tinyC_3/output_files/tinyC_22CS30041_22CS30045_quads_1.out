@@ -1,0 +1,47 @@
+Updating symbol main with type int
+Updating symbol return with type int
+Updating symbol main with type funct(int)
+Updating symbol a with type int
+Updating symbol b with type int
+Updating symbol c with type int
+Updating symbol t2 with type int
+------------------------------------------------------------------------------------------------------------------------------------------------------
+Symbol Table : global						Parent: NULL
+------------------------------------------------------------------------------------------------------------------------------------------------------
+Name                          Type                                    InitVal             Size                Offset              Nested Table        
+main                          funct(int)                              -                   0                   0                   main                
+------------------------------------------------------------------------------------------------------------------------------------------------------
+
+------------------------------------------------------------------------------------------------------------------------------------------------------
+Symbol Table : main						Parent: global
+------------------------------------------------------------------------------------------------------------------------------------------------------
+Name                          Type                                    InitVal             Size                Offset              Nested Table        
+return                        int                                     -                   4                   0                   NULL                
+a                             int                                     5                   4                   4                   NULL                
+t0                            int                                     5                   4                   8                   NULL                
+b                             int                                     10                  4                   12                  NULL                
+t1                            int                                     10                  4                   16                  NULL                
+c                             int                                     -                   4                   20                  NULL                
+t2                            int                                     -                   4                   24                  NULL                
+t3                            int                                     -                   4                   28                  NULL                
+t4                            int                                     -                   4                   32                  NULL                
+t5                            int                                     -                   4                   36                  NULL                
+t6                            int                                     0                   4                   40                  NULL                
+------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Three Address Codes:
+1: main:
+2: t0 = 5
+3: a = t0
+4: t1 = 10
+5: b = t1
+6: t2 = a + b
+7: c = t2
+8: t3 = a - b
+9: c = t3
+10: t4 = a * b
+11: c = t4
+12: t5 = b / a
+13: c = t5
+14: t6 = 0
+15: return t6
