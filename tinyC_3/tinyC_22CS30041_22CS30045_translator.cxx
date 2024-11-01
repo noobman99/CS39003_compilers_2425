@@ -35,7 +35,9 @@ SymTable *currentST;
 Symbol *current_symbol;
 bool isDeclaration;
 
-extern void yyerror(const char *);
+void yyerror(const char *);
+extern int yylineno;
+extern char *yytext;
 
 // SymType class methods
 
@@ -129,7 +131,7 @@ Symbol *SymTable::lookup(string name)
             {
                 string s = "Redeclaration of variable " + name;
                 yyerror(s.c_str());
-                exit(1);
+                // exit(1);
             }
             return &(*it);
         }
@@ -143,7 +145,7 @@ Symbol *SymTable::lookup(string name)
         {
             string s = "Undefined variable " + name;
             yyerror(s.c_str());
-            exit(1);
+            // exit(1);
         }
     }
 
@@ -595,12 +597,24 @@ int main()
     globalST = new SymTable("global"); // Set the global symbol table
     currentST = globalST;              // Set the current symbol table to the global one
 
-    yyparse();
+    try
+    {
+        yyparse();
+        globalST->update(); // Update offsets for all symbol tables
+        globalST->print();  // Print the global symbol table (including nested ones)
 
-    globalST->update(); // Update offsets for all symbol tables
-    globalST->print();  // Print the global symbol table (including nested ones)
-
-    printQuadArray(); // Print the three-address code (TACs)
+        printQuadArray(); // Print the three-address code (TACs)
+    }
+    catch (string &e)
+    {
+        cout << e << endl;
+    }
 
     return 0;
+}
+
+void yyerror(const char *s)
+{
+    string str = "ERROR [Line " + to_string(yylineno) + "] : " + s + ", unable to parse : " + yytext;
+    throw str;
 }

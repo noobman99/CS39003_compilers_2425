@@ -3,7 +3,7 @@
     extern int yylex();
     extern int yylineno;
     extern char *yytext;
-    void yyerror(const char*);
+    extern void yyerror(const char*);
 %}
 
 %union {
@@ -1604,7 +1604,3 @@ declaration_list_opt:
     ;
 
 %%
-
-void yyerror(const char* s) {
-    printf("ERROR [Line %d] : %s, unable to parse : %s\n", yylineno, s, yytext);
-}   
