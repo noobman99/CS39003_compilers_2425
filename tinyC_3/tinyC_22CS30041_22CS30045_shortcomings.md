@@ -12,7 +12,7 @@
    }
    ```
 
-2. Paranthesis around logical expressions gives seg fault.
+2. Paranthesis around logical expressions gives segmentation fault.
    ```
    int main()
    {

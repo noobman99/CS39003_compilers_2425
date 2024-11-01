@@ -1,4 +1,5 @@
-// test_case5.c
+// testing array and pointer
+
 int main()
 {
     int arr[5];

@@ -1,4 +1,5 @@
-// test_case2.c
+// Testing Loops
+
 int main()
 {
     int sum = 0;

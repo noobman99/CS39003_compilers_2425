@@ -1028,30 +1028,6 @@ specifier_qualifier_list_opt:
         { }
     ;
 
-identifier_opt:
-    IDENTIFIER 
-        { }
-
-    | /* empty */
-        { }
-    ;
-
-enumerator_list:
-    enumerator 
-        { }
-
-    | enumerator_list COMMA enumerator
-        { }
-    ;
-
-enumerator:
-    IDENTIFIER 
-        { }
-        
-    | IDENTIFIER ASSIGN constant_expression
-        { }
-    ;
-
 type_qualifier:
     CONST
         { }

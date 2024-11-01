@@ -1,4 +1,10 @@
-// test_case3.c
+// testing Loop + Function Call
+
+int printi(int n)
+{
+    return n;
+}
+
 int main()
 {
     int n = 5;
@@ -10,5 +16,5 @@ int main()
         n--;
     }
 
-    return fact;
+    printi(fact);
 }
