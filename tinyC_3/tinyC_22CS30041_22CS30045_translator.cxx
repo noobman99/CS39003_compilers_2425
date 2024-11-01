@@ -330,6 +330,11 @@ void Quad::print()
         op == "|" || op == "^" || op == "&" || op == "<<" || op == ">>") {
         print_str = res + " = " + arg1 + " " + op + " " + arg2;
     }
+    // ifFalse
+    else if(op=="ff"){
+        // cout << "ifFalse " << arg1 << " goto " << res << endl;
+        print_str = "ifFalse " + arg1 + " goto " + res;
+    }
     // Assignment (res = arg1)
     else if (op == "=") {
         print_str = res + " = " + arg1;
@@ -422,12 +427,9 @@ void Expression::conv2Int()
 void Expression::conv2Bool()
 {
     if (type == Expression::NONBOOLEAN) {
-        // Create lists for true and false cases
+        // To handle such cases, emit an ifFalse statement
         falselist = makelist(nextinstr());
-        emit("==", "", symbol->name, "0");
-        
-        truelist = makelist(nextinstr());
-        emit("goto", "");
+        emit("ff", "", symbol->name);
         
         // Update expression type to boolean
         type = Expression::BOOLEAN;

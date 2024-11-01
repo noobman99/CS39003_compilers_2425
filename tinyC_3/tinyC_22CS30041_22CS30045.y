@@ -60,7 +60,8 @@
 
 // expressions
 %type<expr> constant expression expression_opt expression_statement primary_expression multiplicative_expression additive_expression shift_expression relational_expression equality_expression and_expression exclusive_or_expression inclusive_or_expression logical_and_expression logical_or_expression conditional_expression assignment_expression
-
+// augmented grammar solely for non boolean cases in if statements
+%type<expr> selection_expression
 // arrays
 %type<array> postfix_expression unary_expression cast_expression
 
@@ -1446,7 +1447,7 @@ expression_opt:
 
 selection_statement:
     /* if (expression) M statement N else M statement */
-    IF LPAREN expression RPAREN M statement N ELSE M statement
+    IF LPAREN selection_expression RPAREN M statement N ELSE M statement
         { 
             $$ = new Statement();
 
@@ -1459,7 +1460,7 @@ selection_statement:
         }
     
     /* %prec THEN added to remove translation conflicts */
-    | IF LPAREN expression RPAREN M statement N %prec THEN
+    | IF LPAREN selection_expression RPAREN M statement N %prec THEN
         { 
             $$ = new Statement();
 
@@ -1473,6 +1474,8 @@ selection_statement:
     | SWITCH LPAREN expression RPAREN statement
         { }
     ;
+
+selection_expression: expression {$1->conv2Bool(); $$ = $1;}
 
 iteration_statement:
 
