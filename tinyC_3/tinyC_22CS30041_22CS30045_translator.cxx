@@ -1,15 +1,39 @@
 #include "tinyC_22CS30041_22CS30045_translator.h"
 #include <iomanip>
-// Global variables
-vector<Quad *> qArr;    // array of quads (implemented as a simple vector for convenience)
-SymTable *currentST;    // current symbol table being used
-SymTable *globalST;     // global symbol table (parent of all symbol tables)
-int block_count;        // block count which is used while generating names for new symbol tables
-Symbol *current_symbol; // current symbol - for changing ST if required
-TYPE current_type;      // current type - for type casting if required
-bool isDeclaration;     // to check if the statement is a declaration or not
+/**
+ * Global variables used throughout the translator
+ */
 
-extern void yyerror(const char *s);
+/**
+ * Global variables for the translator implementation
+ * 
+ * qArr: Vector containing all quadruples generated during translation
+ *       Implemented as a vector for dynamic sizing and random access
+ * 
+ * currentST: Pointer to the symbol table currently in scope
+ *           Updated when entering/exiting blocks and functions
+ * 
+ * globalST: Pointer to the root symbol table containing global symbols
+ *          Parent of all other symbol tables in the program
+ * 
+ * block_count: Integer counter used to generate unique identifiers
+ *             for nested symbol tables within code blocks
+ * 
+ * current_symbol: Pointer to symbol being processed during symbol
+ *                table transitions and scope changes
+ * 
+ * current_type: Tracks the active data type for type checking and
+ *              casting operations during translation
+ */
+vector<Quad *> qArr;
+TYPE current_type;
+SymTable *globalST;
+int block_count;
+SymTable *currentST;
+Symbol *current_symbol;
+bool isDeclaration;
+
+extern void yyerror(const char *);
 
 // SymType class methods
 
@@ -18,63 +42,71 @@ SymType::SymType(TYPE type_, SymType *arr_type_, int width_) : type(type_), widt
 // to get size (machine-dependent)
 int SymType::computeSize()
 {
+    int ret = -1;
+    switch(this->type) {
+        case VOID:
+            ret = __SIZE_VOID__;
+            break;
+        case CHAR:
+            ret = __SIZE_CHAR__;
+        case INT:
+            ret = __SIZE_INT__;
+            break;
+        case FLOAT:
+            ret = __SIZE_FLOAT__;
+            break;
+        case POINTER:
+            ret = __SIZE_POINTER__;
+            break;
+        case ARRAY:
+            ret = this->width * (this->arr_type->computeSize());
+            break;
+        case FUNCTION:
+            ret = __SIZE_FUNCTION__;
+            break;
+        default:
+            ret = -1;
+            break;
+    }
 
-    if (this->type == VOID)
-        return __VOID_SIZE;
-
-    else if (this->type == CHAR)
-        return __CHARACTER_SIZE;
-
-    else if (this->type == INT)
-        return __INTEGER_SIZE;
-
-    else if (this->type == FLOAT)
-        return __FLOAT_SIZE;
-
-    else if (this->type == POINTER)
-        return __POINTER_SIZE;
-
-    // depends on type of constituent elements
-    else if (this->type == ARRAY)
-        return this->width * (this->arr_type->computeSize());
-
-    else if (this->type == FUNCTION)
-        return __FUNCTION_SIZE;
-
-    else
-        return -1;
+    return ret;
 }
 
 // to convert the enum to string, for printing
 string SymType::toString()
 {
+    string ret = "";
+    switch(this->type) {
+        case VOID:
+            ret = "void";
+            break;
+        case CHAR:
+            ret = "char";
+            break;
+        case INT:
+            ret = "int";
+            break;
+        case FLOAT:
+            ret = "float";
+            break;
+        case POINTER:
+            ret = "ptr(" + this->arr_type->toString() + ")";
+            break;
+        case ARRAY:
+            ret = "array(" + to_string(this->width) + ", " + this->arr_type->toString() + ")";
+            break;
+        case BLOCK:
+            ret = "block";
+            break;
+        case FUNCTION:
+            ret = "funct(" + this->arr_type->toString() + ")";
+            break;
+        default:
+            ret = "null";
+            break;
+    }
 
-    if (this->type == VOID)
-        return "void";
-
-    else if (this->type == CHAR)
-        return "char";
-
-    else if (this->type == INT)
-        return "int";
-
-    else if (this->type == FLOAT)
-        return "float";
-
-    else if (this->type == POINTER)
-        return "ptr(" + this->arr_type->toString() + ")";
-
-    else if (this->type == FUNCTION)
-        return "funct(" + this->arr_type->toString() + ")";
-
-    else if (this->type == ARRAY)
-        return "array(" + to_string(this->width) + ", " + this->arr_type->toString() + ")";
-
-    else if (this->type == BLOCK)
-        return "block";
-
-    else
-        return "null";
+    return ret;
 }
 
 // SymTable class methods
@@ -85,28 +117,23 @@ Symbol *SymTable::lookup(string name)
 {
     list<Symbol>::iterator it = (this->symbols).begin();
 
-    while (it != (this->symbols).end())
-    {
+    for (; it != (this->symbols).end(); it++) {
         if (it->name == name)
         {
-            if (isDeclaration && name != "return")
-            {
-                string s = "Error: Redeclaration of variable " + name + " in the same scope";
+            if(isDeclaration && name != "return") {
+                string s = "Redeclaration of variable " + name;
                 yyerror(s.c_str());
                 exit(1);
             }
             return &(*it);
         }
-        it++;
     }
 
-    if (!isDeclaration && name != "return")
-    {
-        if (this->parent != NULL)
+    if(!isDeclaration && name != "return")  {
+        if(this->parent != NULL)
             return this->parent->lookup(name);
-        else
-        {
-            string s = "Variable " + name + " not declared";
+        else {
+            string s = "Undefined variable " + name;
             yyerror(s.c_str());
             exit(1);
         }
@@ -123,34 +150,23 @@ Symbol *SymTable::lookup(string name)
 void SymTable::update()
 {
     vector<SymTable *> nested_tables;
-    int offset;
-
     list<Symbol>::iterator it = (this->symbols).begin();
+    
+    int offset = 0;
 
-    while (it != (this->symbols).end())
+    for (; it != (this->symbols).end(); it++)
     {
-        if (it == (this->symbols).begin())
-        {
-            it->offset = 0;
-            offset = it->size;
-        }
-        else
-        {
-            it->offset = offset;
-            offset += it->size;
-        }
+        it->offset = offset;
+        offset += it->size;
         if (it->nestedST)
         {
             nested_tables.push_back(it->nestedST);
         }
-        it++;
     }
 
     vector<SymTable *>::iterator it2 = nested_tables.begin();
-    while (it2 != nested_tables.end())
-    {
+    for (; it2 != nested_tables.end(); it2++) {
         (*it2)->update();
-        it2++;
     }
 }
 
@@ -164,7 +180,6 @@ void SymTable::print()
     cout << endl;
 
     cout << "Symbol Table : " << this->name << "\t\t\t\t\t\tParent: " << (this->parent == NULL ? "NULL" : this->parent->name) << endl;
-    cout << "Number of symbols: " << (this->symbols).size() << endl;
 
     for (int i = 0; i < (__PRINT_TABLE_WIDTH * 7.5); i++)
         cout << "-";
@@ -177,30 +192,23 @@ void SymTable::print()
     cout << left << setw(__PRINT_TABLE_WIDTH) << "Offset";
     cout << left << setw(__PRINT_TABLE_WIDTH) << "Nested Table";
     cout << endl;
-
+    
     vector<SymTable *> nested_tables;
 
     list<Symbol>::iterator it = (this->symbols).begin();
-    while (it != (this->symbols).end())
+    for (; it != (this->symbols).end(); it++)
     {
         cout << left << setw(__PRINT_TABLE_WIDTH * 1.5) << it->name;
-        cout.flush();
         cout << left << setw(__PRINT_TABLE_WIDTH * 2) << it->type->toString();
-        cout.flush();
         cout << left << setw(__PRINT_TABLE_WIDTH) << it->init_val;
-        cout.flush();
         cout << left << setw(__PRINT_TABLE_WIDTH) << it->size;
-        cout.flush();
         cout << left << setw(__PRINT_TABLE_WIDTH) << it->offset;
-        cout.flush();
         cout << left << setw(__PRINT_TABLE_WIDTH) << (it->nestedST == NULL ? "NULL" : it->nestedST->name);
         cout << endl;
 
         // nested tables stored to print them later on, recursively
         if (it->nestedST != NULL)
             nested_tables.push_back(it->nestedST);
-
-        it++;
     }
 
     // gap before printing nested tables
@@ -211,97 +219,95 @@ void SymTable::print()
 
     // print nested tables
     vector<SymTable *>::iterator it2 = nested_tables.begin();
-    while (it2 != nested_tables.end())
-    {
+    for (; it2 != nested_tables.end(); it2++) {
         (*it2)->print();
-        it2++;
     }
 }
 
 // Symbol class methods
 
-Symbol::Symbol(string name_, TYPE type_, string init_val_) : name(name_), type(new SymType(type_)), offset(0), nestedST(NULL), init_val(init_val_)
+Symbol::Symbol(string name_str, TYPE type_val, string init_str) : name(name_str), type(new SymType(type_val)), init_val(init_str)
 {
-    size = this->type->computeSize();
+    // Initialize other members
+    nestedST = nullptr;
+    offset = 0;
+    
+    // Calculate size based on type
+    size = type->computeSize();
 }
 
-Symbol *Symbol::update(SymType *type)
+Symbol* Symbol::update(SymType* new_type) 
 {
-    this->type = type;
-    size = this->type->computeSize();
+    // Update symbol type and recompute size
+    // Store new type information
+    Symbol* current = this;
+    current->type = new_type;
+    
+    // Update memory requirements
+    int computed_size = current->type->computeSize();
+    current->size = computed_size;
+    
     return this;
 }
 
-Symbol *Symbol::convert(TYPE ret_type)
+Symbol *Symbol::convert(TYPE return_type)
 {
     // convert type to given type IF POSSIBLE, else return same symbol
 
-    if (this->type->type == INT)
-    {
-        if (ret_type == FLOAT)
-        {
-            // int to float conversion
-            Symbol *temp = gentemp(ret_type);
-            emit("=", temp->name, "int2float(" + this->name + ")");
-            return temp;
-        }
+    string op = "=";
+    string suffix = this->name + ")";
 
-        else if (ret_type == CHAR)
-        {
-            // int to char conversion
-            Symbol *temp = gentemp(ret_type);
-            emit("=", temp->name, "int2char(" + this->name + ")");
-            return temp;
-        }
+    switch(this->type->type) {
+        case INT:
+        // handle integer conversions
+            switch(return_type) {
+                case FLOAT: {
+                    Symbol *temp = gentemp(return_type);
+                    emit(op, temp->name, "int2float(" + suffix, "");
+                    return temp;
+                }
+                case CHAR: {
+                    Symbol *temp = gentemp(return_type);
+                    emit(op, temp->name, "int2char(" + suffix, "");
+                    return temp;
+                }
+                default:
+                    return this;
+            }
 
-        // no conversion possible, return original symbol
-        return this;
-    }
+        case FLOAT:
+        // handle float conversions
+            switch(return_type) {
+                case INT: {
+                    Symbol *temp = gentemp(return_type);
+                    emit(op, temp->name, "float2int(" + suffix, "");
+                    return temp;
+            }
+                case CHAR: {
+                    Symbol *temp = gentemp(return_type);
+                    emit(op, temp->name, "float2char(" + suffix, "");
+                    return temp;
+                }
+                default:
+                    return this;
+            }
 
-    else if (this->type->type == FLOAT)
-    {
-        if (ret_type == INT)
-        {
-            // float to int conversion
-            Symbol *temp = gentemp(ret_type);
-            emit("=", temp->name, "float2int(" + this->name + ")");
-            return temp;
-        }
-
-        // if the target type is char
-        else if (ret_type == CHAR)
-        {
-            // float to char conversion
-            Symbol *temp = gentemp(ret_type);
-            emit("=", temp->name, "float2char(" + this->name + ")");
-            return temp;
-        }
-
-        // no conversion possible, return original symbol
-        return this;
-    }
-
-    else if (this->type->type == CHAR)
-    {
-        if (ret_type == INT)
-        {
-            // char to int conversion
-            Symbol *temp = gentemp(ret_type);
-            emit("=", temp->name, "char2int(" + this->name + ")");
-            return temp;
-        }
-
-        // if the target type is float
-        else if (ret_type == FLOAT)
-        {
-            // char to float conversion
-            Symbol *temp = gentemp(ret_type);
-            emit("=", temp->name, "char2float(" + this->name + ")");
-            return temp;
-        }
-
-        // no conversion possible, return original symbol
-        return this;
+        case CHAR:
+        // handle char conversions
+            switch(return_type) {
+                case INT: {
+                    Symbol *temp = gentemp(return_type);
+                    emit(op, temp->name, "char2int(" + suffix, "");
+                    return temp;
+                }
+                case FLOAT: {
+                    Symbol *temp = gentemp(return_type);
+                    emit(op, temp->name, "char2float(" + suffix, "");
+                    return temp;
+                }
+                default:
+                    return this;
+            }
     }
 
     // no conversion possible, return original symbol
@@ -317,92 +323,114 @@ Quad::Quad(string res_, int arg1_, string op_, string arg2_) : op(op_), arg1(to_
 void Quad::print()
 {
 
-    // res = arg1 op arg2
-    if (op == "+" || op == "-" || op == "*" || op == "/" || op == "%" || op == "|" || op == "^" || op == "&" || op == "<<" || op == ">>")
-        cout << this->res << " = " << this->arg1 << " " << this->op << " " << this->arg2 << endl;
+    string print_str = "";
 
-    // if arg1 op arg2 goto res
-    else if (op == "==" || op == "!=" || op == "<=" || op == ">=" || op == "<" || op == ">")
-        cout << "if " << this->arg1 << " " << this->op << " " << this->arg2 << " goto " << this->res << endl;
+    // Binary operations (res = arg1 op arg2)
+    if (op == "+" || op == "-" || op == "*" || op == "/" || op == "%" || 
+        op == "|" || op == "^" || op == "&" || op == "<<" || op == ">>") {
+        print_str = res + " = " + arg1 + " " + op + " " + arg2;
+    }
+    // Assignment (res = arg1)
+    else if (op == "=") {
+        print_str = res + " = " + arg1;
+    }
+    // Address of operator (res = &arg1)
+    else if (op == "=&") {
+        print_str = res + " = &" + arg1;
+    }
+    // Pointer dereference (res = *arg1)
+    else if (op == "=*") {
+        print_str = res + " = *" + arg1;
+    }
+    // Unary minus (res = -arg1)
+    else if (op == "=-") {
+        print_str = res + " = -" + arg1;
+    }
+    // Logical not (res = !arg1)
+    else if (op == "!") {
+        print_str = res + " = !" + arg1;
+    }
+    // Bitwise not (res = ~arg1)
+    else if (op == "~") {
+        print_str = res + " = ~" + arg1;
+    }
+    // Conditional jumps (if arg1 op arg2 goto res) 
+    else if (op == "==" || op == "!=" || op == "<=" || op == ">=" || 
+             op == "<" || op == ">") {
+        print_str = "if " + arg1 + " " + op + " " + arg2 + " goto " + res;
+    }
+    // Pointer assignment (*res = arg1)
+    else if (op == "*=") {
+        print_str = "*" + res + " = " + arg1;
+    }
+    // Array access (res = arg1[arg2])
+    else if (op == "=[]") {
+        print_str = res + " = " + arg1 + "[" + arg2 + "]";
+    }
+    // Array assignment (res[arg1] = arg2)
+    else if (op == "[]=") {
+        print_str = res + "[" + arg1 + "] = " + arg2;
+    }
+    // Unconditional jump (goto res)
+    else if (op == "goto") {
+        print_str = "goto " + res;
+    }
+    // Function return (return res)
+    else if (op == "return") {
+        print_str = "return " + res;
+    }
+    // Function parameter (param res)
+    else if (op == "param") {
+        print_str = "param " + res;
+    }
+    // Function call (res = call arg1, arg2)
+    else if (op == "call") {
+        print_str = res + " = call " + arg1 + ", " + arg2;
+    }
+    // Label (res:)
+    else if (op == "label") {
+        print_str = res + ":";
+    }
 
-    // unary operators (res = op arg1)
-    else if (op == "=")
-        cout << this->res << " = " << this->arg1 << endl;
-
-    else if (op == "=&")
-        cout << this->res << " = &" << this->arg1 << endl;
-
-    else if (op == "=*")
-        cout << this->res << " = *" << this->arg1 << endl;
-
-    else if (op == "=-")
-        cout << this->res << " = -" << this->arg1 << endl;
-
-    else if (op == "!")
-        cout << this->res << " = !" << this->arg1 << endl;
-
-    else if (op == "~")
-        cout << this->res << " = ~" << this->arg1 << endl;
-
-    else if (op == "*=")
-        cout << "*" << this->res << " = " << this->arg1 << endl;
-
-    else if (op == "=[]")
-        cout << this->res << " = " << this->arg1 << "[" << this->arg2 << "]" << endl;
-
-    else if (op == "[]=")
-        cout << this->res << "[" << this->arg1 << "]" << " = " << this->arg2 << endl;
-
-    // goto res
-    else if (op == "goto")
-        cout << "goto " << this->res << endl;
-
-    // return res
-    else if (op == "return")
-        cout << "return " << this->res << endl;
-
-    // param res
-    else if (op == "param")
-        cout << "param " << this->res << endl;
-
-    // res = call arg1, arg2
-    else if (op == "call")
-        cout << this->res << " = call " << this->arg1 << ", " << this->arg2 << endl;
-
-    // label
-    else if (op == "label")
-        cout << this->res << ":" << endl;
+    cout << print_str << endl;
 }
 
 // Expression class methods
 
 void Expression::conv2Int()
 {
-    if (this->type == Expression::BOOLEAN)
-    {
-        this->symbol = gentemp(INT);
+    if (type == Expression::BOOLEAN) {
+        // Create new temporary integer variable
+        symbol = gentemp(INT);
 
-        backpatch(this->truelist, nextinstr()); // truelist updation
-        emit("=", this->symbol->name, "true");  // corresponding quad is emitted
+        // Handle true case
+        list<int> trueInstr = truelist;
+        backpatch(trueInstr, nextinstr());
+        emit("=", symbol->name, "true");
 
-        emit("goto", to_string(nextinstr() + 1));
+        // Skip over false case
+        int skipInstr = nextinstr() + 1;
+        emit("goto", to_string(skipInstr));
 
-        backpatch(this->falselist, nextinstr()); // falselist updation
-        emit("=", this->symbol->name, "false");
+        // Handle false case 
+        list<int> falseInstr = falselist;
+        backpatch(falseInstr, nextinstr());
+        emit("=", symbol->name, "false");
     }
 }
 
 void Expression::conv2Bool()
 {
-    if (this->type == Expression::NONBOOLEAN)
-    {
-        this->falselist = makelist(nextinstr()); // falselist updation
-
-        emit("==", "", this->symbol->name, "0");
-
-        this->truelist = makelist(nextinstr()); // truelist updation
-
+    if (type == Expression::NONBOOLEAN) {
+        // Create lists for true and false cases
+        falselist = makelist(nextinstr());
+        emit("==", "", symbol->name, "0");
+        
+        truelist = makelist(nextinstr());
         emit("goto", "");
+        
+        // Update expression type to boolean
+        type = Expression::BOOLEAN;
     }
 }
 
@@ -410,14 +438,12 @@ void Expression::conv2Bool()
 
 void emit(string op, string res, string arg1, string arg2)
 {
-    Quad *q = new Quad(res, arg1, op, arg2);
-    qArr.push_back(q);
+    qArr.push_back(new Quad(res, arg1, op, arg2));
 }
 
 void emit(string op, string res, int arg1, string arg2)
 {
-    Quad *q = new Quad(res, arg1, op, arg2);
-    qArr.push_back(q);
+    qArr.push_back(new Quad(res, to_string(arg1), op, arg2));
 }
 
 list<int> makelist(int i)
@@ -427,71 +453,72 @@ list<int> makelist(int i)
 
 list<int> merge(list<int> l1, list<int> l2)
 {
-    list<int> res = l1;
-    res.merge(l2);
-    return res;
+    l1.merge(l2);
+    return l1;
 }
 
 void backpatch(list<int> li, int addr)
 {
     list<int>::iterator it = li.begin();
-    while (it != li.end())
-    {
+    for (; it != li.end(); it++) {
         qArr[*it - 1]->res = to_string(addr);
-        it++;
     }
 }
 
-// checks if both are of same type, or if type conversion can be done
+// Performs type checking and conversion if possible
 bool typecheck(Symbol *&a, Symbol *&b)
 {
 
-    // if types are same, then no need for converison
-    if (typecheck(a->type, b->type))
-        return true;
-
-    else if (a->type->type == INT or b->type->type == INT)
-    {
-        // convert both to int
-        a = a->convert(INT);
-        b = b->convert(INT);
+    // Handle same type
+    // First check if types match directly
+    if (typecheck(a->type, b->type)) {
         return true;
     }
-
-    else if (a->type->type == FLOAT or b->type->type == FLOAT)
-    {
-        // convert both to float
-        a = a->convert(FLOAT);
-        b = b->convert(FLOAT);
-        return true;
+    
+    // Check type conversion possibilities
+    TYPE target_type;
+    if (a->type->type == FLOAT || b->type->type == FLOAT) {
+        target_type = FLOAT;
+    }
+    else if (a->type->type == INT || b->type->type == INT) {
+        target_type = INT; 
+    }
+    else {
+        return false; // No valid conversion possible
     }
 
-    // no conversion possible
-    else
-        return false;
+    // Convert both symbols to target type
+    a = a->convert(target_type);
+    b = b->convert(target_type);
+    return true;
 }
 
 bool typecheck(SymType *st1, SymType *st2)
 {
     // recursively checks base type
-    if (!st1 and !st2)
+    if (st1 == NULL && st2 == NULL)
         return true;
-    else if (!st1 or !st2 or st1->type != st2->type)
+    else if (st1 == NULL || st2 == NULL || st1->type != st2->type)
         return false;
     else
-        // recursive call
         return typecheck(st1->arr_type, st2->arr_type);
 }
 
 // other functions
 
-int nextinstr() { return qArr.size() + 1; }
+int nextinstr()
+{
+    int temp = qArr.size();
+    return temp + 1;
+}
 
 Symbol *gentemp(TYPE type, string val)
 {
-    Symbol *temp = new Symbol("t" + to_string(currentST->count++), type, val);
-    (currentST->symbols).push_back(*temp);
-    return temp;
+    string name = "t" + to_string(currentST->count);
+    currentST->count += 1;
+    Symbol *s = new Symbol(name, type, val);
+    currentST->symbols.push_back(*s);
+    return s;
 }
 
 void changeTable(SymTable *ST) { currentST = ST; }
@@ -499,28 +526,29 @@ void changeTable(SymTable *ST) { currentST = ST; }
 void printQuadArray()
 {
     cout << "Three Address Codes:" << endl;
-    for (int i = 0; i < qArr.size(); i++)
+    int i = 0;
+    while (i < qArr.size())
     {
         cout << i + 1 << ": ";
         qArr[i]->print();
+        i++;
     }
 }
 
 int main()
 {
 
-    block_count = 0; // initial block count is 0
+    block_count = 0; // Set block count to 0
 
-    globalST = new SymTable("global"); // create global ST and set it as current
-    currentST = globalST;
-    isDeclaration = true;
+    globalST = new SymTable("global"); // Set the global symbol table
+    currentST = globalST; // Set the current symbol table to the global one
 
     yyparse();
 
-    globalST->update(); // update offsets
-    globalST->print();  // print global ST (would include all nested STs too)
+    globalST->update(); // Update offsets for all symbol tables
+    globalST->print();  // Print the global symbol table (including nested ones)
 
-    printQuadArray(); // print quad array (TACs)
+    printQuadArray(); // Print the three-address code (TACs)
 
     return 0;
 }

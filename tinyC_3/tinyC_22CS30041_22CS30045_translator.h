@@ -12,13 +12,12 @@ extern int yyparse();
 using namespace std;
 
 // defining size of data types (can be changed as it is machine-dependent)
-#define __VOID_SIZE 0
-#define __FUNCTION_SIZE 0
-#define __CHARACTER_SIZE 1
-#define __INTEGER_SIZE 4
-#define __POINTER_SIZE 4
-#define __FLOAT_SIZE 8
-
+#define __SIZE_VOID__ 0
+#define __SIZE_CHAR__ 1
+#define __SIZE_INT__ 4
+#define __SIZE_FLOAT__ 8
+#define __SIZE_POINTER__ 4
+#define __SIZE_FUNCTION__ 0
 #define __PRINT_TABLE_WIDTH 20
 
 // Classes
@@ -159,7 +158,7 @@ extern SymTable *globalST;     // global symbol table (parent of all symbol tabl
 extern int block_count;        // block count which is used while generating names for new symbol tables
 extern Symbol *current_symbol; // current symbol - for changing ST if required
 extern TYPE current_type;      // current type - for type casting if required
-extern bool isDeclaration;     // to check if the statement is a declaration or not
+extern bool isDeclaration;    // flag to check if the current symbol is a declaration
 
 // overloaded emit functions corresponding to quad constructors
 void emit(string, string, string = "", string = "");

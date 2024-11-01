@@ -79,14 +79,16 @@
 
 %%
 
-// production rule of auxillary non-terminals 
+// Production rules of auxillary non-terminals 
 
+// Non-terminal M (Next Instruction) - Used to get the next instruction number
 M:  
     {
         $$ = nextinstr();
     }   
 ;
 
+// Non-terminal N (Goto Statement) - Used to create a new statement and emit a goto instruction
 N: 
     {
         $$ = new Statement();
@@ -95,7 +97,10 @@ N:
     }
 ;
 
-// to change symbol table, in case of functions
+// Non-terminal CT (Change Table) - Used when entering a function to:
+// 1. Create a new symbol table if one doesn't exist for this function
+// 2. Change to the function's existing symbol table if it exists
+// 3. Emit a label for the function
 CT:
     {
         if(current_symbol->nestedST == NULL) {
@@ -108,7 +113,10 @@ CT:
     }
 ;
 
-// to change symbol table, in case of blocks (like if statements)
+// Non-terminal CB (Create Block) - Used when entering a block to:
+// 1. Create a new symbol table for the block
+// 2. Set the type of the new symbol table to BLOCK
+// 3. Set the current symbol to the new symbol table
 CB: 
     {
         isDeclaration = true;
@@ -122,38 +130,37 @@ CB:
 ;
 
 
-// The rules that have been ignored (according to assignment specifications) have been left blank. The other rules are left blank because nothing is to be done at that rule
+// Rules to be ignored are left blank
 
-
-// ----------1. Declarations----------
+// -------------------------------------- Expressions --------------------------------------
 
 
 primary_expression: 
     IDENTIFIER 
         { 
-            $$ = new Expression(); // making a new expression and storing the symbol
+            $$ = new Expression(); // Add to the symbol table
             $$->symbol = $1;
             $$->type = Expression::NONBOOLEAN; 
         }
     | constant 
         {
-            $$ = $1; // depends on which type of constant
+            $$ = $1;
         }
 
     | STRING_LITERAL 
         { 
-            $$ = new Expression(); // making a new expression and storing the symbol
+            $$ = new Expression(); // Add to the symbol table
             $$->symbol = gentemp(POINTER, $1);
-            $$->symbol->type->arr_type = new SymType(CHAR); // string = char *
+            $$->symbol->type->arr_type = new SymType(CHAR);
         }
 
     | LPAREN expression RPAREN
         { 
-            $$ = $2; // simply equate to expression
+            $$ = $2;
         }
     ;
 
-// depending on type of constant, generate temporary and store the value in it
+// Depending on the type of constant, generate a temporary
 constant: 
     INTEGER_CONSTANT 
         { 
@@ -180,7 +187,7 @@ constant:
 postfix_expression:
     primary_expression
         { 
-            // create a new array and append location of primary_expression
+            // Create a new array and append the location of the primary expression
             $$ = new Array();
             $$->symbol = $1->symbol;
             $$->loc = $$->symbol;
@@ -191,19 +198,19 @@ postfix_expression:
         { 
             $$ = new Array();
             $$->symbol = $1->symbol;    
-            $$->subarr_type = $1->subarr_type->arr_type; // indexing - going one level deeper
+            $$->subarr_type = $1->subarr_type->arr_type;
             $$->loc = gentemp(INT); 
             $$->type = Array::ARRAY;
 
-            // checking if array is 1D or multi-dimensional
+            // Check for multi-dimensional array
             if($1->type == Array::ARRAY) {
-                // multi-dimensional array - so need to multiply size and add offset
+                // Multi-dimensional array
                 Symbol *sym = gentemp(INT);
                 int size = $$->subarr_type->computeSize();
                 emit("*", sym->name, $3->symbol->name, to_string(size));
                 emit("+", $$->loc->name, $1->loc->name, sym->name);
             } else {
-                // 1D array - just calculate size
+                // 1D array
                 int size = $$->subarr_type->computeSize();
                 emit("*", $$->loc->name, $3->symbol->name, to_string(size));
             }
@@ -212,13 +219,13 @@ postfix_expression:
 
     | postfix_expression LPAREN argument_expression_list_opt RPAREN
         { 
-            // function call
+            // Function call
             $$ = new Array();
             $$->symbol = gentemp($1->symbol->type->arr_type->type);
             emit("call", $$->symbol->name, $1->symbol->name, to_string($3));
         }
 
-    /* below 2 rules are struct-related -> ignored */
+    /* Ignored */
     | postfix_expression DOT IDENTIFIER
         { }
 
@@ -228,7 +235,7 @@ postfix_expression:
     | postfix_expression INCREMENT
         { 
             $$ = new Array();
-            // temp with old value, then add 1
+            // Add 1 to the value
             $$->symbol = gentemp($1->symbol->type->type);
             emit("=", $$->symbol->name, $1->symbol->name);
             emit("+", $1->symbol->name, $1->symbol->name, "1"); 
@@ -236,7 +243,7 @@ postfix_expression:
     | postfix_expression DECREMENT
         { 
             $$ = new Array();
-            // temp with old value, then subtract 1
+            // Subtract 1 from the value
             $$->symbol = gentemp($1->symbol->type->type);
             emit("=", $$->symbol->name, $1->symbol->name);
             emit("-", $1->symbol->name, $1->symbol->name, "1");
@@ -250,29 +257,29 @@ postfix_expression:
     ;
 
 
-// number of arguments/parameters is computed here
+// Number of arguments/parameters is computed here
 argument_expression_list_opt:
     argument_expression_list
         { 
-            $$ = $1; // depends on argument expression list
+            $$ = $1;
         }
 
     | /* empty */
         { 
-            $$ = 0; // no arguments
+            $$ = 0;
         }
     ;
 
 argument_expression_list:
     assignment_expression
         { 
-            $$ = 1; // 1 argument
+            $$ = 1;
             emit("param", $1->symbol->name);
         }
 
     | argument_expression_list COMMA assignment_expression
         { 
-            $$ = $1 + 1; // one more argument added
+            $$ = $1 + 1;
             emit("param", $3->symbol->name);
         }
     ;
@@ -280,37 +287,36 @@ argument_expression_list:
 unary_expression:
     postfix_expression
         { 
-            $$ = $1; // depends on postfix expression
+            $$ = $1;
         }
     | INCREMENT unary_expression
         { 
             $$ = $2;
-            // this is pre increment, so 1 is added directly
+            // Pre-increment
             emit("+", $2->symbol->name, $2->symbol->name, "1");
         }
 
     | DECREMENT unary_expression
         { 
             $$ = $2;
-            // similar to pre increment
+            // Pre-decrement
             emit("-", $2->symbol->name, $2->symbol->name, "1");
         }
 
     | unary_operator cast_expression
         { 
-            // operation depends on unary operator
-
+            // Operation depends on unary operator
             $$ = new Array();
 
             if(strcmp($1, "&") == 0) {
-                // address of -> generate new pointer type
+                // Address of -> generate new pointer type
                 $$->symbol = gentemp(POINTER);
                 $$->symbol->type->arr_type = $2->symbol->type;
                 emit("=&", $$->symbol->name, $2->symbol->name);
             } 
             
             else if(strcmp($1, "*") == 0) {
-                // dereferencing
+                // Dereferencing
                 $$->symbol = $2->symbol;
                 $$->loc = gentemp($2->loc->type->arr_type->type);
                 $$->loc->type->arr_type = $2->loc->type->arr_type->arr_type;
@@ -319,11 +325,11 @@ unary_expression:
             } 
 
             else if(strcmp($1, "+") == 0) {
-                // unary plus
+                // Unary plus
                 $$ = $2;
             } 
             else { 
-                // for unary minus, bitwise not and logical not
+                // For unary minus, bitwise not and logical not
                 $$ = new Array();
                 $$->symbol = gentemp($2->symbol->type->type);
                 
@@ -334,7 +340,7 @@ unary_expression:
             }
         }
 
-    /* below 2 rules involve SIZEOF -> ignored */
+    /* Ignored */
     | SIZEOF unary_expression
         { }
 
@@ -343,7 +349,7 @@ unary_expression:
     ;
 
 
-// just getting the operator, which will be used later on
+// Passing the operator to the next rule
 unary_operator:
     AMPERSAND
         { 
@@ -371,11 +377,11 @@ unary_operator:
         }
     ;
 
-// typecasting
+// Typecasting
 cast_expression:
     unary_expression
         { 
-            $$ = $1; // depends on unary expression
+            $$ = $1;
         }
 
     | LPAREN type_name RPAREN cast_expression 
@@ -391,29 +397,28 @@ multiplicative_expression:
         { 
             $$ = new Expression();
 
-            // we have to obtain base type of the expression in case of array
+            // Obtain base type of the expression in case of array
             SymType *bType = $1->symbol->type;
             while(bType->arr_type != NULL)
                 bType = bType->arr_type;
 
-            // if array, then we create a temp symbol and emit code
+            // If array, then create a temp symbol and emit code
             if($1->type == Array::ARRAY) {
                 $$->symbol = gentemp(bType->type);
                 emit("=[]", $$->symbol->name, $1->symbol->name, $1->loc->name);
             } 
             
-            // if pointer, then we simply store the location
+            // If pointer, then store the location
             else if($1->type == Array::POINTER)
                 $$->symbol = $1->loc;
 
-            // if normal variable, then we simply store the symbol
+            // If normal variable, then store the symbol
             else
                 $$->symbol = $1->symbol;
 
         }
     | multiplicative_expression ASTERISK cast_expression
         { 
-            // similar to above, we obtain base type and create temp symbol
             SymType *bType = $1->symbol->type;
             while(bType->arr_type != NULL)
                 bType = bType->arr_type;
@@ -429,8 +434,8 @@ multiplicative_expression:
             else
                 temp = $3->symbol;
 
-            // now we execute the required operation (here, multiplication)
-            // type compatibility is also checked
+            // Execute the required operation (here, multiplication)
+            // Type compatibility is also checked
             if(typecheck($1->symbol, temp)) {
                 $$ = new Expression();
                 $$->symbol = gentemp($1->symbol->type->type);
@@ -443,7 +448,6 @@ multiplicative_expression:
 
     | multiplicative_expression DIV cast_expression
         { 
-            // similar to above agains
             SymType *bType = $1->symbol->type;
             while(bType->arr_type != NULL)
                 bType = bType->arr_type;
@@ -471,7 +475,6 @@ multiplicative_expression:
 
     | multiplicative_expression MOD cast_expression
         { 
-            // similar to above again
             SymType *bType = $1->symbol->type;
             while(bType->arr_type != NULL)
                 bType = bType->arr_type;
@@ -501,12 +504,12 @@ multiplicative_expression:
 additive_expression:
     multiplicative_expression
         { 
-            $$ = $1; // depends on multiplicative expression
+            $$ = $1;
         }
 
     | additive_expression PLUS multiplicative_expression
         {   
-            // addition operation, but type compatibility is checked
+            // Addition operation, but type compatibility is checked
             if(typecheck($1->symbol, $3->symbol)) {
                 $$ = new Expression();
                 $$->symbol = gentemp($1->symbol->type->type);
@@ -519,7 +522,7 @@ additive_expression:
 
     | additive_expression MINUS multiplicative_expression
         { 
-            // subtraction operation, but type compatibility is checked
+            // Subtraction operation, but type compatibility is checked
             if(typecheck($1->symbol, $3->symbol)) {
                 $$ = new Expression();
                 $$->symbol = gentemp($1->symbol->type->type);
@@ -534,12 +537,11 @@ additive_expression:
 shift_expression:
     additive_expression
         { 
-            $$ = $1; // depends on additive expression
+            $$ = $1;
         }
         
     | shift_expression LSHIFT additive_expression
         { 
-            // left shift operation
             if($3->symbol->type->type == INT) {
                 $$ = new Expression();
                 $$->symbol = gentemp(INT);
@@ -552,7 +554,6 @@ shift_expression:
 
     | shift_expression RSHIFT additive_expression
         { 
-            // right shift operation
             if($3->symbol->type->type == INT) {
                 $$ = new Expression();
                 $$->symbol = gentemp(INT);
@@ -564,12 +565,12 @@ shift_expression:
         }
     ;
 
-// boolean expressions (>, <, <=, >=, =, !=) -> truelist and falselist is made as discussed in class, then backpatching will be done later on
+// Boolean expressions (>, <, <=, >=, =, !=) -> truelist and falselist is initialized here
 
 relational_expression:
     shift_expression
         { 
-            $$ = $1; // depends on shift expression
+            $$ = $1;
         }
     | relational_expression LESS shift_expression
         {   
@@ -635,7 +636,7 @@ relational_expression:
 equality_expression:
     relational_expression
         { 
-            $$ = $1; // depends on relational expression
+            $$ = $1;
         }
 
     | equality_expression EQUAL relational_expression
@@ -680,12 +681,12 @@ equality_expression:
     ;
 
 
-// in these cases, there is no need for falselist and truelist, but booleans are involved, hence conversion is done
+// Conversion is done for boolean values
 
 and_expression:
     equality_expression
         { 
-            $$ = $1; // depends on equality expression
+            $$ = $1;
         }
 
     | and_expression AMPERSAND equality_expression
@@ -704,7 +705,7 @@ and_expression:
 exclusive_or_expression:
     and_expression
         { 
-            $$ = $1; // depends on AND expression
+            $$ = $1;
         }
     | exclusive_or_expression XOR and_expression
         { 
@@ -722,7 +723,7 @@ exclusive_or_expression:
 inclusive_or_expression:
     exclusive_or_expression
         { 
-            $$ = $1; // depends on exclusive OR expression
+            $$ = $1;
         }
     | inclusive_or_expression OR exclusive_or_expression
         {  
@@ -737,12 +738,12 @@ inclusive_or_expression:
         }
     ;
 
-// in these cases, backpatching needs to be done (as discussed in class), so M and N are used 
+// Backpatching used here
 
 logical_and_expression:
     inclusive_or_expression
         { 
-            $$ = $1; // depends on inclusive OR expression
+            $$ = $1;
         }
 
     | logical_and_expression LOG_AND M inclusive_or_expression
@@ -759,11 +760,10 @@ logical_and_expression:
         }
     ;
 
-// similarly, done for the rest too
 logical_or_expression:
     logical_and_expression
         { 
-            $$ = $1; // depends on logical AND expression
+            $$ = $1;
         }
 
     | logical_or_expression LOG_OR M logical_and_expression
@@ -783,10 +783,9 @@ logical_or_expression:
 conditional_expression:
     logical_or_expression
         { 
-            $$ = $1; // depends on logical OR expression
+            $$ = $1;
         }
 
-    // this is like "if (logical_or_expression) { expression } else { conditional_expression }", so similar addition of M and N is done
     | logical_or_expression N QUESTION M expression N COLON M conditional_expression
         { 
             $$->symbol = gentemp($5->symbol->type->type);
@@ -816,10 +815,10 @@ conditional_expression:
 assignment_expression:
     conditional_expression
         { 
-            $$ = $1; // depends on conditional expression
+            $$ = $1;
         }
 
-    // assignment in case of array or pointer or normal variable
+    // Assignment in case of array or pointer or normal variable
     | unary_expression assignment_operator assignment_expression
         { 
             if($1->type == Array::ARRAY) {
@@ -869,10 +868,10 @@ assignment_operator:
 expression:
     assignment_expression
         { 
-            $$ = $1; // depends on assignment expression
+            $$ = $1;
         }
     
-    /* expression involving comma operator -> ignored */
+    /* Ignored */
     | expression COMMA assignment_expression
         { }
     ;
@@ -882,7 +881,7 @@ constant_expression:
         { }
     ;
 
-// ----------2. Declarations----------
+// -------------------------------------- Declarations --------------------------------------
 
 
 declaration:
@@ -890,7 +889,7 @@ declaration:
         { }
     ;
 
-/* rules involving storage_class_specifier, enum_specifier, type_qualifier, function_specifier  -> ignored */
+/* Ignored */
 declaration_specifiers:
     storage_class_specifier declaration_specifiers_opt
         { }
@@ -932,17 +931,16 @@ init_declarator_list_opt:
 init_declarator:
     declarator
         { 
-            $$ = $1; // depends on declarator
+            $$ = $1;
         }
     | declarator ASSIGN initializer
         {   
-            // if non-empty, then we assign the initial value
             if($3->init_val != "-") $1->init_val = $3->init_val;
             emit("=", $1->name, $3->name);
         }
     ;
 
-/* storage_class_specifier -> ignored */
+/* Ignored */
 storage_class_specifier:
     EXTERN
         { }
@@ -957,9 +955,9 @@ storage_class_specifier:
         { }
     ;
 
-/* only void, char, int, float considered */
-/* their token names were changed to avoid overlap with enum names */
-/* depending on the type, current type is updated */
+/* Only void, char, int, float considered */
+/* Their token names were changed to avoid overlap with enum names */
+/* Depending on the type, current type is updated */
 type_specifier:
     VOID_TYPE
         { 
@@ -1000,7 +998,7 @@ type_specifier:
         { }
     ;
 
-/* rules involving type_qualifier -> ignored */
+/* Ignored */
 specifier_qualifier_list:
     type_specifier specifier_qualifier_list_opt
         { }
@@ -1060,25 +1058,27 @@ function_specifier:
 declarator:
     pointer direct_declarator
         { 
-            // for multi-dimensional arrays -> moving deeper until base type is obtained
+            // Obtain the base
             SymType *temp = $1;
             while(temp->arr_type != NULL) 
                 temp = temp->arr_type;
 
             SymType* t_base = $2->type;
-            SymType* prev = NULL;
-            while(t_base->arr_type != NULL) 
-                {prev = t_base,
-                t_base = t_base->arr_type;}
-
-            // updating type of declarator
+            SymType* t_base_prev = NULL;
+            while(t_base->arr_type != NULL) {
+                t_base_prev = t_base;
+                t_base = t_base->arr_type;
+            }
+            
+            // Declarator type is updated
             temp->arr_type = t_base;
-            if (prev != NULL) 
-                {prev->arr_type = $1;
-                $$ = $2;}
-            else 
-                {$$ = $2->update($1);}
-
+            if (t_base_prev != NULL){
+                t_base_prev->arr_type = $1;
+                $$ = $2;
+            }
+            else{
+                $$ = $2->update($1);
+            }
             isDeclaration = false;
         }
 
@@ -1088,28 +1088,20 @@ declarator:
         }
     ;
 
-/*
-
-Declarations
-
-*/
-
-/* rules involving type_qualifier ignored */
-/* rules involving static ignored */
 /* type_qualifier_list_opt replaced with type_qualifier_list and epsilon */
 /* assignment_expression_opt replaced with assignment_expression and epsilon */
 /* identifier_list_opt replaced  with identifier_list and epsilon */
 direct_declarator:
     IDENTIFIER 
         { 
-            // variable declaration
+            // Variable declaration
             $$ = $1->update(new SymType(current_type)); 
             current_symbol = $$;
         }
 
     | LPAREN declarator RPAREN
         { 
-            $$ = $2; // depends on declarator
+            $$ = $2;
         }
 
     | direct_declarator LPARENSQ type_qualifier_list assignment_expression RPARENSQ
@@ -1121,7 +1113,7 @@ direct_declarator:
     | direct_declarator LPARENSQ assignment_expression RPARENSQ
         { 
             
-            // to check whether array is 1D or multi-dimensional
+            // Check for array dimension
             SymType *temp = $1->type, *prev = NULL;
             while(temp->type == ARRAY) { 
                 prev = temp;
@@ -1129,12 +1121,11 @@ direct_declarator:
             }
 
             if(prev != NULL) { 
-                // case of multi-dimensional array -> base type is obtained from temp
+                // Multi-dimensional array -> base type is obtained from temp
                 prev->arr_type =  new SymType(ARRAY, temp, atoi($3->symbol->init_val.c_str()));	
                 $$ = $1->update($1->type);
             }
             else { 
-                // just 1D array
                 SymType* new_type = new SymType(ARRAY, $1->type, atoi($3->symbol->init_val.c_str()));
                 $$ = $1->update(new_type);
             }
@@ -1142,7 +1133,6 @@ direct_declarator:
 
     | direct_declarator LPARENSQ RPARENSQ
         { 
-            // similar to previous one, but initial value is kept as 0 as we don't know the size
             SymType *temp = $1->type, *prev = NULL;
             while(temp->type == ARRAY) { 
                 prev = temp;
@@ -1150,12 +1140,11 @@ direct_declarator:
             }
 
             if(prev != NULL) { 
-                // case of multi-dimensional array
+                // Multi-dimensional array
                 prev->arr_type =  new SymType(ARRAY, temp, 0);	
                 $$ = $1->update($1->type);
             }
             else { 
-                // just 1D array
                 SymType* new_type = new SymType(ARRAY, $1->type, 0);
                 $$ = $1->update(new_type);
             }
@@ -1176,26 +1165,26 @@ direct_declarator:
     | direct_declarator LPARENSQ ASTERISK RPARENSQ
         { }
     
-    /* additional non-terminal used to trigger changing of symbol table in case of function  */
+    /* Trigger changing of symbol table in case of function using CT */
     | direct_declarator LPAREN CT parameter_type_list RPAREN
         { 
-            // function declaration
             currentST->name = $1->name;
 
             if($1->type->type != VOID) {
-                // return symbol is updated, for non-void functions
+                // Return symbol updated for non-void functions
                 Symbol* s = currentST->lookup("return");
                 s->update($1->type);
             }
-            SymType* t = new SymType(FUNCTION);
-            t->arr_type = $1->type;
-            $1->update(t);
 
-            // set nested table for function
+            SymType* temp = new SymType(FUNCTION);
+            temp->arr_type = $1->type;
+            $1->update(temp);
+
+            // Set nested table for function
             $1->nestedST = currentST;
             currentST->parent = globalST;
 
-            changeTable(globalST); // change to global table
+            changeTable(globalST);
             current_symbol = $$;
         }
 
@@ -1204,22 +1193,22 @@ direct_declarator:
 
     | direct_declarator LPAREN CT RPAREN
         { 
-            // same as previous one
             currentST->name = $1->name;
 
             if($1->type->type != VOID && $1->type->type != FUNCTION) {
                 Symbol* s = currentST->lookup("return");
                 s->update($1->type);
             }
-            SymType* t = new SymType(FUNCTION);
-            t->arr_type = $1->type;
-            $1->update(t);
 
-            // set nested table for function
+            SymType* temp = new SymType(FUNCTION);
+            temp->arr_type = $1->type;
+            $1->update(temp);
+
+            // Set nested table for function
             $1->nestedST = currentST;
             currentST->parent = globalST;
 
-            changeTable(globalST); // change to global table
+            changeTable(globalST);
             current_symbol = $$;
         }
     ;
@@ -1229,12 +1218,12 @@ direct_declarator:
 pointer:
     ASTERISK type_qualifier_list_opt
         { 
-            $$ = new SymType(POINTER); // new pointer
+            $$ = new SymType(POINTER);
         }
 
     | ASTERISK type_qualifier_list_opt pointer
         { 
-            $$ = new SymType(POINTER, $3); // nested pointer
+            $$ = new SymType(POINTER, $3); // Nested pointer
         }
     ;
 
@@ -1294,7 +1283,7 @@ type_name:
 initializer:
     assignment_expression
         { 
-            $$ = $1->symbol; // depends on assignment expression
+            $$ = $1->symbol;
         }
 
     | LBRACE initializer_list RBRACE
@@ -1342,9 +1331,9 @@ designator:
     ;
 
 
-// ----------3. Statements----------
+// ----------------------------- Statements -----------------------------
 
-/* labeled_statement -> ignored */
+/* Ignored */
 statement:
     labeled_statement
         { }
@@ -1376,7 +1365,7 @@ statement:
         }
     ;
 
-/* labeled_statement -> ignored */
+/* Ignored */
 labeled_statement:
     IDENTIFIER COLON statement
         { }
@@ -1404,7 +1393,7 @@ block_item_list:
             $$ = $1;
         }
 
-    // backpatching needs to be done 
+    // Backpatching required
     // L -> L1 M S 
     | block_item_list M block_item
         { 
@@ -1416,12 +1405,12 @@ block_item_list:
 block_item_list_opt:
     block_item_list
         { 
-            $$ = $1; // depends on block item list
+            $$ = $1;
         }
 
     | /* empty */
         { 
-            $$ = new Statement(); // new statement
+            $$ = new Statement();
         }
     ;
 
@@ -1429,36 +1418,32 @@ block_item_list_opt:
 block_item:
     declaration
         { 
-            $$ = new Statement(); // new statement
+            $$ = new Statement();
         }
     | statement
         { 
-            $$ = $1; // depends on statement
+            $$ = $1;
         }
     ;
 
 expression_statement:
     expression_opt SEMICOLON
         { 
-            $$ = $1; // depends on expression
+            $$ = $1;
         }
     ;
 
 expression_opt:
     expression
         { 
-            $$ = $1; // depends on expression
+            $$ = $1;
         }
     | /* empty */
         { 
-            $$ = new Expression(); // new expression
+            $$ = new Expression();
         }
     ;
 
-/* switch ignored */
-/* for with declaration inside ignored */
-
-/* in IF, WHILE, DO and FOR: backpatching needs to be done (as discussed in class) */
 selection_statement:
     /* if (expression) M statement N else M statement */
     IF LPAREN expression RPAREN M statement N ELSE M statement
@@ -1470,21 +1455,19 @@ selection_statement:
             backpatch($3->truelist, $5); // if true, go to M1 (if-statement)
             backpatch($3->falselist, $9); // if false, go to M2 (else-statement)
 
-            $$->nextlist = merge($10->nextlist, merge($6->nextlist, $7->nextlist)); // to go out of if-else after it's done
+            $$->nextlist = merge($10->nextlist, merge($6->nextlist, $7->nextlist)); // Exit if else
         }
     
     /* %prec THEN added to remove translation conflicts */
-    /* if (expression) M statement */
-    /* N also added before %prec THEN to exit if condition ("THEN" is not actually checked) */
     | IF LPAREN expression RPAREN M statement N %prec THEN
         { 
             $$ = new Statement();
 
             $3->conv2Bool();
 
-            backpatch($3->truelist, $5); // // if true, go to M1 (if-statement)
+            backpatch($3->truelist, $5); // If true, go to M1
 
-            $$->nextlist = merge($3->falselist, merge($6->nextlist, $7->nextlist)); // to go out of if when expression is false
+            $$->nextlist = merge($3->falselist, merge($6->nextlist, $7->nextlist)); // Exit if when expression is false
         }
     
     | SWITCH LPAREN expression RPAREN statement
@@ -1493,7 +1476,6 @@ selection_statement:
 
 iteration_statement:
 
-    /* while M1 (expression) M2 statement */
     WHILE M LPAREN expression RPAREN M statement
         { 
             $$ = new Statement();
@@ -1501,48 +1483,44 @@ iteration_statement:
             $4->conv2Bool();
 
             backpatch($7->nextlist, $2); // M1 -> to go back to start of loop
-            backpatch($4->truelist, $6); // if true, go to M2 (statement)
+            backpatch($4->truelist, $6); // If true, go to M2
 
-            $$->nextlist = $4->falselist; // to go out of while when expression is false
+            $$->nextlist = $4->falselist; // Exit while when expression is false
 
             emit("goto", to_string($2));
         }
 
-    // similar to while ...
-    // do M1 statement M2 while (expression) ;
     | DO M statement M WHILE LPAREN expression RPAREN SEMICOLON
         { 
             $$ = new Statement();
 
             $7->conv2Bool();
 
-            backpatch($7->truelist, $2); // if true, go to M1 (statement)
+            backpatch($7->truelist, $2); // If true, go to M1
             backpatch($3->nextlist, $4); // M2 -> to go to check expression once statement is executed
 
-            $$->nextlist = $7->falselist; // to go out of do-while when expression is false
+            $$->nextlist = $7->falselist; // Exit do-while when expression is false
         }
 
-    // again similar to while ... 
     | FOR LPAREN expression_opt SEMICOLON M expression_opt SEMICOLON M expression_opt N RPAREN M statement
         { 
             $$ = new Statement();
 
             $6->conv2Bool();
 
-            backpatch($6->truelist, $12); // if true, go to M3 (statement)
-            backpatch($10->nextlist, $5); // go to M1 after N1 (for checking condition)
-            backpatch($13->nextlist, $8); // go to M2 (3rd part of for loop), after statement is executed
+            backpatch($6->truelist, $12); // If true, go to M3
+            backpatch($10->nextlist, $5); // Go to M1 after N1
+            backpatch($13->nextlist, $8); // Go to M2 after statement is executed
 
             emit("goto", to_string($8));
 
-            $$->nextlist = $6->falselist; // to go out of for when expression is false
+            $$->nextlist = $6->falselist; // Exit for when expression is false
         }
 
     | FOR LPAREN declaration expression_opt SEMICOLON expression_opt RPAREN statement
         { }
     ;
 
-/* only return is considered */
 jump_statement:
     GOTO IDENTIFIER SEMICOLON
         { }    
@@ -1555,7 +1533,6 @@ jump_statement:
 
     | RETURN expression_opt SEMICOLON
         {   
-            // depending on whether expression_opt is epsilon or not, return is handled
             $$ = new Statement();
             emit("return",($2->symbol == NULL) ? "" : $2->symbol->name);
         }
@@ -1563,7 +1540,6 @@ jump_statement:
 
 /* External definitions */
 
-/* external_declaration and translation_unit -> ignored */
 translation_unit:
     external_declaration
         { }
@@ -1580,13 +1556,13 @@ external_declaration:
         { }
     ;
 
-// compound_statement at the end is expanded - to avoid block change in function definition
+// Compound statement at the end is expanded
 function_definition: 
     declaration_specifiers declarator declaration_list_opt CT LBRACE block_item_list_opt RBRACE
         { 
-            block_count = 0; // reset block count for function
+            block_count = 0; // Reset block count for function
             $2->type->type = FUNCTION;
-            changeTable(globalST); // return to global ST
+            changeTable(globalST); // Return to global ST
         }
     ;
 
