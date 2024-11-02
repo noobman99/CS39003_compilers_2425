@@ -1,5 +1,5 @@
 %{
-    #include "tinyC_22CS30041_22CS30045_translator.h"
+    #include "tinyC3_22CS30041_22CS30045_translator.h"
     extern int yylex();
     extern int yylineno;
     extern char *yytext;

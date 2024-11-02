@@ -1,7 +1,7 @@
 %{
 #include <stdio.h>
 #include <stdlib.h>
-#include "tinyC_22CS30041_22CS30045_translator.h"
+#include "tinyC3_22CS30041_22CS30045_translator.h"
 #include "y.tab.h"
 
 %}

@@ -1,4 +1,4 @@
-#include "tinyC_22CS30041_22CS30045_translator.h"
+#include "tinyC3_22CS30041_22CS30045_translator.h"
 #include <iomanip>
 /**
  * Global variables used throughout the translator
