@@ -19,7 +19,8 @@ Symbol *SymbolTable;
 int offset;
 int tempIndex;
 int nextInstruction;
-int assmeblyIns;
+int assemblyIns;
+int quadIns;
 
 Quad ASSEMBLY_CODE[MAX_QUADS];
 
@@ -107,11 +108,12 @@ void emit(char *op, char *arg1, char *arg2, char *result)
 
 void emitAssembly(char *op, char *arg1, char *arg2, char *result)
 {
-    strcpy(ASSEMBLY_CODE[assmeblyIns].op, op);
-    strcpy(ASSEMBLY_CODE[assmeblyIns].arg1, arg1);
-    strcpy(ASSEMBLY_CODE[assmeblyIns].arg2, arg2);
-    strcpy(ASSEMBLY_CODE[assmeblyIns].result, result);
-    assmeblyIns++;
+    strcpy(ASSEMBLY_CODE[assemblyIns].op, op);
+    strcpy(ASSEMBLY_CODE[assemblyIns].arg1, arg1);
+    strcpy(ASSEMBLY_CODE[assemblyIns].arg2, arg2);
+    strcpy(ASSEMBLY_CODE[assemblyIns].result, result);
+    ASSEMBLY_CODE[assemblyIns].altIns = quadIns;
+    assemblyIns++;
 }
 
 void backpatch(int instructionNumber, int target)
@@ -137,32 +139,36 @@ void inialize_leaders()
 void printQuads()
 {
     int block = 1;
+    // Write to "intermediate_instructions.txt"
+    __FILE *fp = fopen("intermediate_instructions.txt", "w");
     for (int i = 1; i < nextInstruction; i++)
     {
         if (Leaders[i] != 0)
         {
             if (i != 1)
-                printf("\n");
-            printf("Block %d\n", block++);
+                fprintf(fp, "\n");
+            fprintf(fp, "Block %d\n", block++);
         }
 
         if (strcmp(Q[i].op, "=") == 0)
         {
-            printf("%d : %s = %s \n", i, Q[i].result, Q[i].arg1);
+            fprintf(fp, "%d : %s = %s \n", i, Q[i].result, Q[i].arg1);
             continue;
         }
         else if (strcmp(Q[i].op, "gt") == 0)
         {
-            printf("%d : goto %s \n", i, Q[i].result);
+            fprintf(fp, "%d : goto %s \n", i, Q[i].result);
             continue;
         }
         else if (strcmp(Q[i].op, "ff") == 0)
         {
-            printf("%d : iffalse %s goto %s \n", i, Q[i].arg1, Q[i].result);
+            fprintf(fp, "%d : iffalse %s goto %s \n", i, Q[i].arg1, Q[i].result);
             continue;
         }
-        printf("%d : %s = %s %s %s \n", i, Q[i].result, Q[i].arg1, Q[i].op, Q[i].arg2);
+        fprintf(fp, "%d : %s = %s %s %s \n", i, Q[i].result, Q[i].arg1, Q[i].op, Q[i].arg2);
     }
+
+    fprintf(fp, "\n%d\n", nextInstruction);
 }
 
 /* Register functions */
@@ -178,7 +184,7 @@ void spill(int reg, int forced)
         {
             char *tmp = (char *)malloc(10);
             sprintf(tmp, "R%d", reg);
-            emitAssembly("ST", sym->name, tmp, "");
+            emitAssembly("ST", tmp, "", sym->name);
             free(tmp);
         }
         sym->reg = -1;
@@ -258,7 +264,7 @@ void addSymbol(int reg, Symbol *sym)
 
 void freeRegs()
 {
-    for (int i = 0; i < totReg; i++)
+    for (int i = 1; i < totReg + 1; i++)
     {
         spill(i, 0);
     }
@@ -278,7 +284,7 @@ int getReg(Symbol *sym, int isRes)
         }
     }
 
-    for (int i = 0; i < totReg; i++)
+    for (int i = 1; i < totReg + 1; i++)
     {
         if (registers[i].symbols == NULL)
         {
@@ -290,7 +296,7 @@ int getReg(Symbol *sym, int isRes)
             {
                 char *tmp = (char *)malloc(10);
                 sprintf(tmp, "R%d", i);
-                emitAssembly("LD", tmp, sym->name, "");
+                emitAssembly("LD", sym->name, "", tmp);
                 free(tmp);
             }
             addSymbol(i, sym);
@@ -299,7 +305,7 @@ int getReg(Symbol *sym, int isRes)
     }
 
     int min_score = 1000000, min_reg = -1;
-    for (int i = 0; i < totReg; i++)
+    for (int i = 1; i < totReg + 1; i++)
     {
         int score = 0;
         Symtab *temp = registers[i].symbols;
@@ -333,7 +339,7 @@ int getReg(Symbol *sym, int isRes)
     {
         char *tmp = (char *)malloc(10);
         sprintf(tmp, "R%d", min_reg);
-        emitAssembly("LD", tmp, sym->name, "");
+        emitAssembly("LD", sym->name, "", tmp);
         free(tmp);
     }
     addSymbol(min_reg, sym);
@@ -363,6 +369,8 @@ void generateTargetCode()
     int block = 1;
     for (int i = 1; i < nextInstruction; i++)
     {
+        Q[i].altIns = assemblyIns;
+
         if (strcmp(Q[i].op, "=") == 0)
         {
             Symbol *arg1 = lookup(Q[i].arg1, 0, 0);
@@ -372,7 +380,7 @@ void generateTargetCode()
                 int result_reg = getReg(result, 1);
                 char *tmp = (char *)malloc(10);
                 sprintf(tmp, "R%d", result_reg);
-                emitAssembly("LDI", tmp, Q[i].arg1, "");
+                emitAssembly("LDI", Q[i].arg1, "", tmp);
                 free(tmp);
             }
             else
@@ -480,16 +488,44 @@ void generateTargetCode()
             }
         }
 
-        Q[i].assemblyIns = assmeblyIns - 1;
+        // Create a mapping between the two instruction sets
+        quadIns++;
     }
 }
 
 void printAssembly()
 {
-    for (int i = 1; i < assmeblyIns; i++)
+    int block = 1;
+    int lastIns = 0;
+
+    // Write to "target_code.txt"
+    __FILE *fp = fopen("target_code.txt", "w");
+
+    for (int i = 1; i < assemblyIns; i++)
     {
-        printf("%d: %s %s %s %s\n", i, ASSEMBLY_CODE[i].op, ASSEMBLY_CODE[i].arg1, ASSEMBLY_CODE[i].arg2, ASSEMBLY_CODE[i].result);
+        if (lastIns != ASSEMBLY_CODE[i].altIns)
+        {
+            lastIns = ASSEMBLY_CODE[i].altIns;
+            if (Leaders[lastIns] == 1)
+            {
+                if (i != 1)
+                    fprintf(fp, "\n");
+                fprintf(fp, "Block %d:\n", block++);
+            }
+        }
+        if (ASSEMBLY_CODE[i].op[0] == 'J')
+        {
+            int jmp = atoi(ASSEMBLY_CODE[i].result);
+            jmp = Q[jmp].altIns;
+            fprintf(fp, "%d, %d: %s %s %s %d\n", i, ASSEMBLY_CODE[i].altIns, ASSEMBLY_CODE[i].op, ASSEMBLY_CODE[i].arg1, ASSEMBLY_CODE[i].arg2, jmp != 0 ? jmp : assemblyIns);
+        }
+        else
+        {
+            fprintf(fp, "%d, %d: %s %s %s %s\n", i, ASSEMBLY_CODE[i].altIns, ASSEMBLY_CODE[i].op, ASSEMBLY_CODE[i].result, ASSEMBLY_CODE[i].arg1, ASSEMBLY_CODE[i].arg2);
+        }
     }
+
+    fprintf(fp, "\n%d:\n", assemblyIns);
 }
 
 int main(int argc, char **argv)
@@ -507,12 +543,12 @@ int main(int argc, char **argv)
     setbuf(stdout, NULL);
     SymbolTable = NULL;
     tempIndex = 1;
-    assmeblyIns = 1;
+    assemblyIns = 1;
+    quadIns = 1;
     nextInstruction = 1;
     inialize_leaders();
     yyparse();
     printQuads();
-    printf("\n\n\n\n\n\n");
     generateTargetCode();
     printAssembly();
     return 0;

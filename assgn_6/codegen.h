@@ -14,7 +14,7 @@ typedef struct
     char arg1[40];
     char arg2[40];
     char result[40];
-    int assemblyIns;
+    int altIns;
 } Quad;
 
 typedef struct symbol
