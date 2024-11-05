@@ -10,7 +10,7 @@ void yyerror(char *s);
 
 typedef struct
 {
-    char op[3];
+    char op[10];
     char arg1[40];
     char arg2[40];
     char result[40];

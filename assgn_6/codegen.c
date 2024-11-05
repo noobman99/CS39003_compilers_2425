@@ -21,6 +21,8 @@ int tempIndex;
 int nextInstruction;
 int assmeblyIns;
 
+Quad ASSEMBLY_CODE[MAX_QUADS];
+
 int totReg;
 
 extern int yyparse();
@@ -103,6 +105,15 @@ void emit(char *op, char *arg1, char *arg2, char *result)
     nextInstruction++;
 }
 
+void emitAssembly(char *op, char *arg1, char *arg2, char *result)
+{
+    strcpy(ASSEMBLY_CODE[assmeblyIns].op, op);
+    strcpy(ASSEMBLY_CODE[assmeblyIns].arg1, arg1);
+    strcpy(ASSEMBLY_CODE[assmeblyIns].arg2, arg2);
+    strcpy(ASSEMBLY_CODE[assmeblyIns].result, result);
+    assmeblyIns++;
+}
+
 void backpatch(int instructionNumber, int target)
 {
     if (strcmp(Q[instructionNumber].op, "ff") == 0 || strcmp(Q[instructionNumber].op, "gt") == 0)
@@ -165,7 +176,10 @@ void spill(int reg, int forced)
         Symbol *sym = temp->head;
         if (sym->isMemsync == 0 && (forced == 1 || sym->isTemp == 0))
         {
-            printf("%d: ST %s, R%d\n", assmeblyIns++, sym->name, reg);
+            char *tmp = (char *)malloc(10);
+            sprintf(tmp, "R%d", reg);
+            emitAssembly("ST", sym->name, tmp, "");
+            free(tmp);
         }
         sym->reg = -1;
         sym->isMemsync = 1;
@@ -199,6 +213,15 @@ void removeSymbol(Symbol *sym)
     }
 }
 
+Symtab *newSymbolWrap(Symbol *sym)
+{
+    Symtab *tmp = (Symtab *)malloc(sizeof(Symtab));
+    tmp->head = sym;
+    tmp->next = NULL;
+
+    return tmp;
+}
+
 void addSymbol(int reg, Symbol *sym)
 {
     Symtab *temp = registers[reg].symbols;
@@ -210,10 +233,8 @@ void addSymbol(int reg, Symbol *sym)
 
     if (temp == NULL)
     {
-        registers[reg].symbols = (Symtab *)malloc(sizeof(Symtab));
-        registers[reg].symbols->head = sym;
+        registers[reg].symbols = newSymbolWrap(sym);
         sym->reg = reg;
-        registers[reg].symbols->next = NULL;
         return;
     }
 
@@ -231,10 +252,8 @@ void addSymbol(int reg, Symbol *sym)
         }
     }
 
-    temp->next = (Symtab *)malloc(sizeof(Symtab));
-    temp->next->head = sym;
+    temp->next = newSymbolWrap(sym);
     sym->reg = reg;
-    temp->next->next = NULL;
 }
 
 void freeRegs()
@@ -249,9 +268,7 @@ int getReg(Symbol *sym, int isRes)
 {
     if (sym->reg != -1)
     {
-        Reg reg = registers[sym->reg];
-        Symtab *temp = reg.symbols;
-        if (temp->next == NULL || isRes == 0)
+        if (registers[sym->reg].symbols->next == NULL || isRes == 0)
         {
             if (isRes == 1)
             {
@@ -271,7 +288,10 @@ int getReg(Symbol *sym, int isRes)
             }
             else
             {
-                printf("%d: LD R%d, %s\n", assmeblyIns++, i, sym->name);
+                char *tmp = (char *)malloc(10);
+                sprintf(tmp, "R%d", i);
+                emitAssembly("LD", tmp, sym->name, "");
+                free(tmp);
             }
             addSymbol(i, sym);
             return i;
@@ -311,11 +331,31 @@ int getReg(Symbol *sym, int isRes)
     }
     else
     {
-        printf("%d: LD R%d, %s\n", assmeblyIns++, min_reg, sym->name);
+        char *tmp = (char *)malloc(10);
+        sprintf(tmp, "R%d", min_reg);
+        emitAssembly("LD", tmp, sym->name, "");
+        free(tmp);
     }
     addSymbol(min_reg, sym);
 
     return min_reg;
+}
+
+char *getName(char *sym_name)
+{
+    Symbol *sym = lookup(sym_name, 0, 0);
+    char *arg1_name = (char *)malloc(10);
+    if (sym->isConst)
+    {
+        strcpy(arg1_name, sym_name);
+    }
+    else
+    {
+        int arg1_reg = getReg(sym, 0);
+        sprintf(arg1_name, "R%d", arg1_reg);
+    }
+
+    return arg1_name;
 }
 
 void generateTargetCode()
@@ -323,11 +363,6 @@ void generateTargetCode()
     int block = 1;
     for (int i = 1; i < nextInstruction; i++)
     {
-        if (Leaders[i] != 0)
-        {
-            printf("\nBlock %d\n", block++);
-        }
-
         if (strcmp(Q[i].op, "=") == 0)
         {
             Symbol *arg1 = lookup(Q[i].arg1, 0, 0);
@@ -335,7 +370,10 @@ void generateTargetCode()
             if (arg1->isConst)
             {
                 int result_reg = getReg(result, 1);
-                printf("%d: LDI R%d %s\n", assmeblyIns++, result_reg, Q[i].arg1);
+                char *tmp = (char *)malloc(10);
+                sprintf(tmp, "R%d", result_reg);
+                emitAssembly("LDI", tmp, Q[i].arg1, "");
+                free(tmp);
             }
             else
             {
@@ -352,117 +390,89 @@ void generateTargetCode()
         else if (strcmp(Q[i].op, "gt") == 0)
         {
             freeRegs();
-            printf("%d: JMP %s\n", assmeblyIns++, Q[i].result);
+            emitAssembly("JMP", "", "", Q[i].result);
         }
         else if (strcmp(Q[i].op, "ff") == 0)
         {
             // Read arg1, operation, arg2 from Q[i].arg1
             char *arg1, *operation, *arg2;
             sscanf(Q[i].arg1, "%m[^ ] %m[^ ] %m[^\n]", &arg1, &operation, &arg2);
-            Symbol *arg1_sym = lookup(arg1, 0, 0);
-            char *arg1_name = (char *)malloc(10);
-            if (arg1_sym->isConst)
-            {
-                strcpy(arg1_name, arg1);
-            }
-            else
-            {
-                int arg1_reg = getReg(arg1_sym, 0);
-                sprintf(arg1_name, "R%d", arg1_reg);
-            }
-            Symbol *arg2_sym = lookup(arg2, 0, 0);
-            char *arg2_name = (char *)malloc(10);
-            if (arg2_sym->isConst)
-            {
-                strcpy(arg2_name, arg2);
-            }
-            else
-            {
-                int arg2_reg = getReg(arg2_sym, 0);
-                sprintf(arg2_name, "R%d", arg2_reg);
-            }
+
+            char *arg1_name = getName(arg1);
+            char *arg2_name = getName(arg2);
 
             freeRegs();
+
+            char opr[5];
+
             if (strcmp(operation, "=") == 0)
             {
-                printf("%d: JNE %s %s %s\n", assmeblyIns++, arg1_name, arg2_name, Q[i].result);
+                strcpy(opr, "JNE");
             }
             else if (strcmp(operation, "/=") == 0)
             {
-                printf("%d: JEQ %s %s %s\n", assmeblyIns++, arg1_name, arg2_name, Q[i].result);
+                strcpy(opr, "JEQ");
             }
             else if (strcmp(operation, "<") == 0)
             {
-                printf("%d: JGE %s %s %s\n", assmeblyIns++, arg1_name, arg2_name, Q[i].result);
+                strcpy(opr, "JGE");
             }
             else if (strcmp(operation, ">") == 0)
             {
-                printf("%d: JLE %s %s %s\n", assmeblyIns++, arg1_name, arg2_name, Q[i].result);
+                strcpy(opr, "JLE");
             }
             else if (strcmp(operation, "<=") == 0)
             {
-                printf("%d: JGT %s %s %s\n", assmeblyIns++, arg1_name, arg2_name, Q[i].result);
+                strcpy(opr, "JGT");
             }
             else if (strcmp(operation, ">=") == 0)
             {
-                printf("%d: JLT %s %s %s\n", assmeblyIns++, arg1_name, arg2_name, Q[i].result);
+                strcpy(opr, "JLT");
             }
 
-            if (Leaders[i + 1] != 0)
-            {
-                freeRegs();
-            }
+            emitAssembly(opr, arg1_name, arg2_name, Q[i].result);
+
+            free(arg1_name);
+            free(arg2_name);
         }
         else
         {
-            Symbol *arg1 = lookup(Q[i].arg1, 0, 0);
-            char *arg1_name = (char *)malloc(10);
-            if (arg1->isConst)
-            {
-                strcpy(arg1_name, Q[i].arg1);
-            }
-            else
-            {
-                int arg1_reg = getReg(arg1, 0);
-                sprintf(arg1_name, "R%d", arg1_reg);
-            }
-            Symbol *arg2 = lookup(Q[i].arg2, 0, 0);
-            char *arg2_name = (char *)malloc(10);
-            if (arg2->isConst)
-            {
-                strcpy(arg2_name, Q[i].arg2);
-            }
-            else
-            {
-                int arg2_reg = getReg(arg2, 0);
-                sprintf(arg2_name, "R%d", arg2_reg);
-            }
+            char *arg1_name = getName(Q[i].arg1);
+            char *arg2_name = getName(Q[i].arg2);
+
             Symbol *result = lookup(Q[i].result, 1, 0);
             int result_reg = getReg(result, 1);
 
             char operation = Q[i].op[0];
+            char opr[5];
 
             switch (operation)
             {
             case '+':
-                printf("%d: ADD R%d %s %s\n", assmeblyIns++, result_reg, arg1_name, arg2_name);
+                strcpy(opr, "ADD");
                 break;
             case '-':
-                printf("%d: SUB R%d %s %s\n", assmeblyIns++, result_reg, arg1_name, arg2_name);
+                strcpy(opr, "SUB");
                 break;
             case '*':
-                printf("%d: MUL R%d %s %s\n", assmeblyIns++, result_reg, arg1_name, arg2_name);
+                strcpy(opr, "MUL");
                 break;
             case '/':
-                printf("%d: DIV R%d %s %s\n", assmeblyIns++, result_reg, arg1_name, arg2_name);
+                strcpy(opr, "DIV");
                 break;
             case '%':
-                printf("%d: MOD R%d %s %s\n", assmeblyIns++, result_reg, arg1_name, arg2_name);
+                strcpy(opr, "MOD");
                 break;
             }
 
+            char *tmp = (char *)malloc(10);
+            sprintf(tmp, "R%d", result_reg);
+
+            emitAssembly(opr, arg1_name, arg2_name, tmp);
+
             free(arg1_name);
             free(arg2_name);
+            free(tmp);
 
             if (Leaders[i + 1] != 0)
             {
@@ -471,6 +481,14 @@ void generateTargetCode()
         }
 
         Q[i].assemblyIns = assmeblyIns - 1;
+    }
+}
+
+void printAssembly()
+{
+    for (int i = 1; i < assmeblyIns; i++)
+    {
+        printf("%d: %s %s %s %s\n", i, ASSEMBLY_CODE[i].op, ASSEMBLY_CODE[i].arg1, ASSEMBLY_CODE[i].arg2, ASSEMBLY_CODE[i].result);
     }
 }
 
@@ -496,6 +514,7 @@ int main(int argc, char **argv)
     printQuads();
     printf("\n\n\n\n\n\n");
     generateTargetCode();
+    printAssembly();
     return 0;
 }
 
