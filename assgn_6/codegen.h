@@ -7,23 +7,24 @@ void yyerror(char *s);
 
 #define MAX_QUADS 1000
 #define MAX_REG 20
+#define MAX_VARIABLE_NAME 20
 
+// Assumption -- All variables names are less than 20 characters
 typedef struct
 {
-    char op[10];
-    char arg1[40];
-    char arg2[40];
-    char result[40];
+    char op[5];
+    char arg1[2 * MAX_VARIABLE_NAME + 10];
+    char arg2[MAX_VARIABLE_NAME + 1];
+    char result[MAX_VARIABLE_NAME + 1];
     int altIns;
 } Quad;
 
 typedef struct symbol
 {
-    char name[40];
+    char name[MAX_VARIABLE_NAME + 1];
     int reg;
     int isTemp;
     int isConst;
-    int offset;
     int isMemsync;
     struct symbol *next;
 } Symbol;

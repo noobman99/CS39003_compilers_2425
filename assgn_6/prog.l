@@ -23,7 +23,7 @@
 ">"                  { yylval.str = ">"; return GT; }
 "<="                 { yylval.str = "<="; return LE; }
 ">="                 { yylval.str = ">="; return GE; }
-"/="                 { yylval.str = "/="; return NE; }
+"/="                 { yylval.str = "!="; return NE; }
 .                    { /* ignore other characters */ }
 
 %%

@@ -12,18 +12,27 @@ typedef struct reg
     Symtab *symbols;
 } Reg;
 
+/* Global variables */
+
+// Array of quads (Intermediate code)
 Quad Q[MAX_QUADS];
-int Leaders[MAX_QUADS];
-Reg registers[MAX_REG];
-Symbol *SymbolTable;
-int offset;
-int tempIndex;
-int nextInstruction;
-int assemblyIns;
-int quadIns;
-
+// Array of quads (Target code)
 Quad ASSEMBLY_CODE[MAX_QUADS];
-
+// Array of leaders
+int Leaders[MAX_QUADS];
+// Array of registers
+Reg registers[MAX_REG];
+// Symbol table
+Symbol *SymbolTable;
+// Index of temporary variables
+int tempIndex;
+// Index of next instruction
+int nextInstruction;
+// Index of next assembly instruction
+int assemblyIns;
+// Index of next quad instruction (Used for mapping)
+int quadIns;
+// Total number of registers (default 5)
 int totReg;
 
 extern int yyparse();
@@ -37,15 +46,6 @@ Symbol *newSymbol(char *name, int isTemp, int isConst)
     new->reg = -1;
     new->isTemp = isTemp;
     new->isConst = isConst;
-    if (isTemp == 0 && isConst == 0)
-    {
-        new->offset = offset;
-        offset += 4;
-    }
-    else
-    {
-        new->offset = -1;
-    }
     new->isMemsync = 1;
     new->next = NULL;
     return new;
@@ -53,7 +53,7 @@ Symbol *newSymbol(char *name, int isTemp, int isConst)
 
 Symbol *genTemp()
 {
-    char *tempName = (char *)malloc(20);
+    char *tempName = (char *)malloc(10 * sizeof(char));
     sprintf(tempName, "$%d", tempIndex++);
     Symbol *temp = newSymbol(tempName, 1, 0);
     if (SymbolTable == NULL)
@@ -120,7 +120,7 @@ void backpatch(int instructionNumber, int target)
 {
     if (strcmp(Q[instructionNumber].op, "ff") == 0 || strcmp(Q[instructionNumber].op, "gt") == 0)
     {
-        char *gotoInstruction = (char *)malloc(20);
+        char *gotoInstruction = (char *)malloc(20 * sizeof(char));
         sprintf(gotoInstruction, "%d", target);
         strcpy(Q[instructionNumber].result, gotoInstruction);
         free(gotoInstruction);
@@ -173,6 +173,12 @@ void printQuads()
 
 /* Register functions */
 
+/*
+    Spill the register
+    forced = 1, spill all symbols in the register
+    forced = 0, spill only non-temporary symbols
+    Constant symbols are always ignored
+*/
 void spill(int reg, int forced)
 {
     Symtab *temp = registers[reg].symbols;
@@ -180,9 +186,9 @@ void spill(int reg, int forced)
     while (temp != NULL)
     {
         Symbol *sym = temp->head;
-        if (sym->isMemsync == 0 && (forced == 1 || sym->isTemp == 0))
+        if (sym->isConst == 0 && sym->isMemsync == 0 && (forced == 1 || sym->isTemp == 0))
         {
-            char *tmp = (char *)malloc(10);
+            char *tmp = (char *)malloc(10 * sizeof(char));
             sprintf(tmp, "R%d", reg);
             emitAssembly("ST", tmp, "", sym->name);
             free(tmp);
@@ -196,6 +202,9 @@ void spill(int reg, int forced)
     registers[reg].symbols = NULL;
 }
 
+/*
+    Remove the symbol from the register it is stored in
+*/
 void removeSymbol(Symbol *sym)
 {
     Symtab *temp = registers[sym->reg].symbols;
@@ -228,6 +237,9 @@ Symtab *newSymbolWrap(Symbol *sym)
     return tmp;
 }
 
+/*
+    Add the symbol to the register
+*/
 void addSymbol(int reg, Symbol *sym)
 {
     Symtab *temp = registers[reg].symbols;
@@ -262,6 +274,9 @@ void addSymbol(int reg, Symbol *sym)
     sym->reg = reg;
 }
 
+/*
+    Spill all registers in non-forced mode
+*/
 void freeRegs()
 {
     for (int i = 1; i < totReg + 1; i++)
@@ -270,6 +285,9 @@ void freeRegs()
     }
 }
 
+/*
+    Get Reg function to get the register number of the symbol
+*/
 int getReg(Symbol *sym, int isRes)
 {
     if (sym->reg != -1)
@@ -294,7 +312,7 @@ int getReg(Symbol *sym, int isRes)
             }
             else
             {
-                char *tmp = (char *)malloc(10);
+                char *tmp = (char *)malloc(10 * sizeof(char));
                 sprintf(tmp, "R%d", i);
                 emitAssembly("LD", sym->name, "", tmp);
                 free(tmp);
@@ -304,11 +322,12 @@ int getReg(Symbol *sym, int isRes)
         }
     }
 
-    int min_score = 1000000, min_reg = -1;
+    int min_score = 1000000, min_reg = -1, score;
+    Symtab *temp = NULL;
     for (int i = 1; i < totReg + 1; i++)
     {
-        int score = 0;
-        Symtab *temp = registers[i].symbols;
+        score = 0;
+        temp = registers[i].symbols;
         while (temp != NULL)
         {
             if (temp->head->isMemsync == 0)
@@ -322,6 +341,7 @@ int getReg(Symbol *sym, int isRes)
             }
             temp = temp->next;
         }
+        // Update the register with the minimum score
         if (score < min_score)
         {
             min_score = score;
@@ -337,7 +357,7 @@ int getReg(Symbol *sym, int isRes)
     }
     else
     {
-        char *tmp = (char *)malloc(10);
+        char *tmp = (char *)malloc(10 * sizeof(char));
         sprintf(tmp, "R%d", min_reg);
         emitAssembly("LD", sym->name, "", tmp);
         free(tmp);
@@ -347,10 +367,15 @@ int getReg(Symbol *sym, int isRes)
     return min_reg;
 }
 
+/*
+    Function to get the name of the symbol
+    If the symbol is a constant, return the name of the symbol
+    If the symbol is a variable, return the register number in form of a string
+ */
 char *getName(char *sym_name)
 {
     Symbol *sym = lookup(sym_name, 0, 0);
-    char *arg1_name = (char *)malloc(10);
+    char *arg1_name = (char *)malloc(10 * sizeof(char));
     if (sym->isConst)
     {
         strcpy(arg1_name, sym_name);
@@ -364,11 +389,15 @@ char *getName(char *sym_name)
     return arg1_name;
 }
 
+/*
+    Generate the target code from the intermediate code
+*/
 void generateTargetCode()
 {
     int block = 1;
     for (int i = 1; i < nextInstruction; i++)
     {
+        // Create a mapping between the two instruction sets
         Q[i].altIns = assemblyIns;
 
         if (strcmp(Q[i].op, "=") == 0)
@@ -377,14 +406,16 @@ void generateTargetCode()
             Symbol *result = lookup(Q[i].result, 0, 0);
             if (arg1->isConst)
             {
+                // If arg1 is a constant, load it into a register
                 int result_reg = getReg(result, 1);
-                char *tmp = (char *)malloc(10);
+                char *tmp = (char *)malloc(10 * sizeof(char));
                 sprintf(tmp, "R%d", result_reg);
                 emitAssembly("LDI", Q[i].arg1, "", tmp);
                 free(tmp);
             }
             else
             {
+                // Assign the result to register of arg1
                 int arg_reg = getReg(arg1, 0);
                 addSymbol(arg_reg, result);
                 result->isMemsync = 0;
@@ -392,12 +423,14 @@ void generateTargetCode()
 
             if (Leaders[i + 1] != 0)
             {
+                // Free all registers if this is the last instruction in the block
                 freeRegs();
             }
         }
         else if (strcmp(Q[i].op, "gt") == 0)
         {
             freeRegs();
+            // Q[i].result is the goto instruction (To be backpatched)
             emitAssembly("JMP", "", "", Q[i].result);
         }
         else if (strcmp(Q[i].op, "ff") == 0)
@@ -405,19 +438,17 @@ void generateTargetCode()
             // Read arg1, operation, arg2 from Q[i].arg1
             char *arg1, *operation, *arg2;
             sscanf(Q[i].arg1, "%m[^ ] %m[^ ] %m[^\n]", &arg1, &operation, &arg2);
-
             char *arg1_name = getName(arg1);
             char *arg2_name = getName(arg2);
 
             freeRegs();
 
             char opr[5];
-
             if (strcmp(operation, "=") == 0)
             {
                 strcpy(opr, "JNE");
             }
-            else if (strcmp(operation, "/=") == 0)
+            else if (strcmp(operation, "!=") == 0)
             {
                 strcpy(opr, "JEQ");
             }
@@ -438,6 +469,7 @@ void generateTargetCode()
                 strcpy(opr, "JLT");
             }
 
+            // Q[i].result is the goto instruction (To be backpatched)
             emitAssembly(opr, arg1_name, arg2_name, Q[i].result);
 
             free(arg1_name);
@@ -450,10 +482,11 @@ void generateTargetCode()
 
             Symbol *result = lookup(Q[i].result, 1, 0);
             int result_reg = getReg(result, 1);
+            char *result_name = (char *)malloc(10 * sizeof(char));
+            sprintf(result_name, "R%d", result_reg);
 
             char operation = Q[i].op[0];
             char opr[5];
-
             switch (operation)
             {
             case '+':
@@ -473,17 +506,15 @@ void generateTargetCode()
                 break;
             }
 
-            char *tmp = (char *)malloc(10);
-            sprintf(tmp, "R%d", result_reg);
-
-            emitAssembly(opr, arg1_name, arg2_name, tmp);
+            emitAssembly(opr, arg1_name, arg2_name, result_name);
 
             free(arg1_name);
             free(arg2_name);
-            free(tmp);
+            free(result_name);
 
             if (Leaders[i + 1] != 0)
             {
+                // Free all registers if this is the last instruction in the block
                 freeRegs();
             }
         }
@@ -515,12 +546,18 @@ void printAssembly()
         }
         if (ASSEMBLY_CODE[i].op[0] == 'J')
         {
+            // Backpatch the jump instruction
             int jmp = atoi(ASSEMBLY_CODE[i].result);
             jmp = Q[jmp].altIns;
-            fprintf(fp, "%d, %d: %s %s %s %d\n", i, ASSEMBLY_CODE[i].altIns, ASSEMBLY_CODE[i].op, ASSEMBLY_CODE[i].arg1, ASSEMBLY_CODE[i].arg2, jmp != 0 ? jmp : assemblyIns);
+            jmp = (jmp == 0) ? assemblyIns : jmp;
+            sprintf(ASSEMBLY_CODE[i].result, "%d", jmp);
+
+            // Print the jump instruction
+            fprintf(fp, "%d, %d: %s %s %s %d\n", i, ASSEMBLY_CODE[i].altIns, ASSEMBLY_CODE[i].op, ASSEMBLY_CODE[i].arg1, ASSEMBLY_CODE[i].arg2, jmp);
         }
         else
         {
+            // Print the instruction
             fprintf(fp, "%d, %d: %s %s %s %s\n", i, ASSEMBLY_CODE[i].altIns, ASSEMBLY_CODE[i].op, ASSEMBLY_CODE[i].result, ASSEMBLY_CODE[i].arg1, ASSEMBLY_CODE[i].arg2);
         }
     }
