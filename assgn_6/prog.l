@@ -18,7 +18,7 @@
 "*"                  { yylval.str = "*"; return MUL; }
 "/"                  { yylval.str = "/"; return DIV; }
 "%"                  { yylval.str = "%"; return REM; }
-"="                  { yylval.str = "="; return EQ; }
+"="                  { yylval.str = "=="; return EQ; }
 "<"                  { yylval.str = "<"; return LT; }
 ">"                  { yylval.str = ">"; return GT; }
 "<="                 { yylval.str = "<="; return LE; }
