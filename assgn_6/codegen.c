@@ -10,6 +10,7 @@ typedef struct symtab
 typedef struct reg
 {
     Symtab *symbols;
+    int lastUsed;
 } Reg;
 
 /* Global variables */
@@ -34,6 +35,8 @@ int assemblyIns;
 int quadIns;
 // Total number of registers (default 5)
 int totReg;
+//
+int currentIns;
 
 extern int yyparse();
 
@@ -186,6 +189,10 @@ void spill(int reg, int forced)
     while (temp != NULL)
     {
         Symbol *sym = temp->head;
+        // if (reg == 3)
+        // {
+        // printf("Spilling %s, isTemp %d, isConst %d, isMemsync %d\n", sym->name, sym->isTemp, sym->isConst, sym->isMemsync);
+        // }
         if (sym->isConst == 0 && sym->isMemsync == 0 && (forced == 1 || sym->isTemp == 0))
         {
             char *tmp = (char *)malloc(10 * sizeof(char));
@@ -269,7 +276,6 @@ void addSymbol(int reg, Symbol *sym)
             return;
         }
     }
-
     temp->next = newSymbolWrap(sym);
     sym->reg = reg;
 }
@@ -298,6 +304,7 @@ int getReg(Symbol *sym, int isRes)
             {
                 sym->isMemsync = 0;
             }
+            registers[sym->reg].lastUsed = currentIns;
             return sym->reg;
         }
     }
@@ -318,6 +325,7 @@ int getReg(Symbol *sym, int isRes)
                 free(tmp);
             }
             addSymbol(i, sym);
+            registers[i].lastUsed = currentIns;
             return i;
         }
     }
@@ -326,18 +334,38 @@ int getReg(Symbol *sym, int isRes)
     Symtab *temp = NULL;
     for (int i = 1; i < totReg + 1; i++)
     {
+        // printf("Register %d, lastUsed %d, currentIns %d, sym->name %s\n", i, registers[i].lastUsed, currentIns, sym->name);
+        if (registers[i].lastUsed == currentIns)
+        {
+            if (isRes == 1)
+            {
+                // Check if the symbol in register is a temporary variable
+                temp = registers[i].symbols;
+                if (temp->head->isTemp && temp->next == NULL)
+                {
+                    min_score = 0;
+                    min_reg = i;
+                    break;
+                }
+            }
+            continue;
+        }
         score = 0;
         temp = registers[i].symbols;
         while (temp != NULL)
         {
             if (temp->head->isMemsync == 0)
             {
-                score++;
+                // if the symbol is a temporary variable, give it a higher score, so that it is not spilled first
+                if (temp->head->isTemp)
+                {
+                    score += 10;
+                }
+                score += 1;
             }
-            // if the symbol is a temporary variable, give it a higher score, so that it is not spilled first
-            if (temp->head->isTemp)
+            if (temp->head->isTemp == 0)
             {
-                score += 10;
+                score += 1;
             }
             temp = temp->next;
         }
@@ -363,7 +391,7 @@ int getReg(Symbol *sym, int isRes)
         free(tmp);
     }
     addSymbol(min_reg, sym);
-
+    registers[min_reg].lastUsed = currentIns;
     return min_reg;
 }
 
@@ -384,6 +412,10 @@ char *getName(char *sym_name)
     {
         int arg1_reg = getReg(sym, 0);
         sprintf(arg1_name, "R%d", arg1_reg);
+        if (sym->isTemp)
+        {
+            sym->isMemsync = 1;
+        }
     }
 
     return arg1_name;
@@ -399,11 +431,13 @@ void generateTargetCode()
     {
         // Create a mapping between the two instruction sets
         Q[i].altIns = assemblyIns;
+        currentIns = i;
 
         if (strcmp(Q[i].op, "=") == 0)
         {
             Symbol *arg1 = lookup(Q[i].arg1, 0, 0);
             Symbol *result = lookup(Q[i].result, 0, 0);
+            // printf("setting %s to %s\n", result->name, arg1->name);
             if (arg1->isConst)
             {
                 // If arg1 is a constant, load it into a register
@@ -416,7 +450,9 @@ void generateTargetCode()
             else
             {
                 // Assign the result to register of arg1
+
                 int arg_reg = getReg(arg1, 0);
+                // printf("arg_reg %d\n", arg_reg);
                 addSymbol(arg_reg, result);
                 result->isMemsync = 0;
             }
@@ -444,7 +480,7 @@ void generateTargetCode()
             freeRegs();
 
             char opr[5];
-            if (strcmp(operation, "=") == 0)
+            if (strcmp(operation, "==") == 0)
             {
                 strcpy(opr, "JNE");
             }
@@ -577,7 +613,6 @@ int main(int argc, char **argv)
         // set totReg to 5 if no argument is provided
         totReg = 5;
     }
-    setbuf(stdout, NULL);
     SymbolTable = NULL;
     tempIndex = 1;
     assemblyIns = 1;
@@ -585,6 +620,7 @@ int main(int argc, char **argv)
     nextInstruction = 1;
     inialize_leaders();
     yyparse();
+    Leaders[nextInstruction] = 1;
     printQuads();
     generateTargetCode();
     printAssembly();
