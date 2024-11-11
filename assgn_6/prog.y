@@ -38,8 +38,8 @@ ASGN: LP SET IDEN ATOM RP {
         emit("=", $4->name, "", var->name); // Generate assignment quad
     };
 
-COND: LP WHEN M BOOL M LIST RP {
-        backpatch($4, nextInstruction); // Backpatch false label
+COND: LP WHEN BOOL M LIST RP {
+        backpatch($3, nextInstruction); // Backpatch false label
         Leaders[nextInstruction] = 1; // Mark end of condition as leader
     };
 

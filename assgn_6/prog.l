@@ -9,7 +9,7 @@
 "set"                { return SET; }
 "when"               { return WHEN; }
 "loop while"        { return WHILE; }
-[0-9]+               { yylval.str = strdup(yytext); return NUMB; }
+[+-]?[0-9]+               { yylval.str = strdup(yytext); return NUMB; }
 [a-zA-Z_][a-zA-Z0-9_]* { yylval.str = strdup(yytext); return IDEN; }
 "("                  { return LP; }
 ")"                  { return RP; }
