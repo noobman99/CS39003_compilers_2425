@@ -589,12 +589,12 @@ void printAssembly()
             sprintf(ASSEMBLY_CODE[i].result, "%d", jmp);
 
             // Print the jump instruction
-            fprintf(fp, "%d, %d: %s %s %s %d\n", i, ASSEMBLY_CODE[i].altIns, ASSEMBLY_CODE[i].op, ASSEMBLY_CODE[i].arg1, ASSEMBLY_CODE[i].arg2, jmp);
+            fprintf(fp, "%d: %s %s %s %d\n", i, ASSEMBLY_CODE[i].op, ASSEMBLY_CODE[i].arg1, ASSEMBLY_CODE[i].arg2, jmp);
         }
         else
         {
             // Print the instruction
-            fprintf(fp, "%d, %d: %s %s %s %s\n", i, ASSEMBLY_CODE[i].altIns, ASSEMBLY_CODE[i].op, ASSEMBLY_CODE[i].result, ASSEMBLY_CODE[i].arg1, ASSEMBLY_CODE[i].arg2);
+            fprintf(fp, "%d: %s %s %s %s\n", i, ASSEMBLY_CODE[i].op, ASSEMBLY_CODE[i].result, ASSEMBLY_CODE[i].arg1, ASSEMBLY_CODE[i].arg2);
         }
     }
 

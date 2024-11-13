@@ -1,16 +1,23 @@
 %{
 #include "y.tab.h"
 #include <string.h>
-
+void yyerror(const char *s);
 %}
 
+letter [a-zA-Z_]
+digit [0-9]
+nz_digit [1-9]
+identifier {letter}({letter}|{digit})*
+constant [+-]?(({nz_digit}{digit}*)|0)
+ws [ \t\n]
+
 %%
-[ \t\n]+              ; // Ignore whitespace
+{ws}              ; // Ignore whitespace
 "set"                { return SET; }
 "when"               { return WHEN; }
 "loop while"        { return WHILE; }
-[+-]?[0-9]+               { yylval.str = strdup(yytext); return NUMB; }
-[a-zA-Z_][a-zA-Z0-9_]* { yylval.str = strdup(yytext); return IDEN; }
+{constant}               { yylval.str = strdup(yytext); return NUMB; }
+{identifier} { yylval.str = strdup(yytext); return IDEN; }
 "("                  { return LP; }
 ")"                  { return RP; }
 "+"                  { yylval.str = "+"; return PLUS; }
@@ -24,7 +31,7 @@
 "<="                 { yylval.str = "<="; return LE; }
 ">="                 { yylval.str = ">="; return GE; }
 "/="                 { yylval.str = "!="; return NE; }
-.                    { /* ignore other characters */ }
+.                    { yyerror("Invalid Character"); }
 
 %%
 

@@ -13,7 +13,7 @@ lex.yy.c: prog.l
 
 run: all
 	./codegen < sample.txt
-	echo "Assembly code is in target_code.txt, intermediate instructions are in intermediate_instructions.txt"
+	@ echo "Assembly code is in target_code.txt, intermediate instructions are in intermediate_instructions.txt"
 
 clean:
 	rm -f lex.yy.c y.tab.c y.tab.h codegen
